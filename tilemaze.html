@@ -1,0 +1,43 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <meta charset="utf-8"/>
+  <title>Tile Maze</title>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="tilemaze.js"></script>
+  <script>$(document).ready(ready);</script>
+
+  <style>
+  #viewport {
+    font-family: "Lucida Console", Monaco, monospace;
+    position: relative;
+    animation-name: party;
+    animation-duration: 3s;
+    animation-iteration-count: infinite;
+  }
+
+  .renderBox {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    font-size: x-large;
+    text-align: center;
+  }
+
+  @keyframes party {
+    0% { background-color: yellow; transform: rotate(0deg); }
+    25% { background-color: pink; transform: rotate(7deg);}
+    50% { background-color: white; transform: rotate(-7deg); }
+    75% { background-color: red; transform: rotate(-12deg); }
+    100% { background-color: yellow; transform: rotate(0deg); }
+  }
+  </style>
+</head>
+
+<body>
+  <div id="viewport">This page is only supported for recent versions of Chrome.</div>
+</body>
+
+</html>
