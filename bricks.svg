@@ -1,0 +1,10 @@
+<!DOCTYPE svg>
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+ <rect width="100" height="100" style="fill:rgb(255,0,0)" />
+ <rect x="5" y="5" width="40" height="22" style="fill:rgb(120, 00,0);stroke-width:5;stroke:rgb(255,250,230)" />
+ <rect x="55" y="5" width="43" height="22" style="fill:rgb(120, 00,0);stroke-width:5;stroke:rgb(255,250,230)" />
+ <rect x="2" y="37" width="20" height="24" style="fill:rgb(120, 00,0);stroke-width:5;stroke:rgb(255,250,230)" />
+ <rect x="30" y="38" width="60" height="24" style="fill:rgb(120, 00,0);stroke-width:5;stroke:rgb(255,250,230)" />
+ <rect x="4" y="72" width="42" height="21" style="fill:rgb(120, 00,0);stroke-width:5;stroke:rgb(255,250,230)" />
+ <rect x="54" y="71" width="41" height="23" style="fill:rgb(120, 00,0);stroke-width:5;stroke:rgb(255,250,230)" />
+</svg>

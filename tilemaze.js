@@ -123,10 +123,10 @@
       gamestate.byX[newX], gamestate.byY[newY]);
 
     if (entitiesAtDestination.filter(e => e.type === "exit").length > 0) {
-      alert("Found the cake! Winner");
-      return;
+      alert("Found the glowing thing! Winner");
+      newX = 17;  newY = 5; // TODO: add new levels and named connections
     }
-    if (entitiesAtDestination.filter(e => e.type === "wall").length > 0) {
+    else if (entitiesAtDestination.filter(e => e.type === "wall").length > 0) {
       return;
     }
 
@@ -139,30 +139,26 @@
   this.draw = function (gamestate) {
     var outStr = "";
     var rowCounter = 0;
-    var template = '<div class="renderBox" style="left: Xpx; top: Ypx; color:COLOR">CHAR</div>';
+    var template = '<div class="renderBox" style="left: Xpx; top: Ypx;"><img src="SVGURL" width="100%" height="100%" /></div>';
+    var svgMap = { // to do, allow per-level and per-block overrides for style
+     floor: "floor",
+     spawn: "floor",
+     wall: "bricks",
+     exit: "glowycircle",
+     player: "smiles",
+    };
+    var renderOrder = ["floor", "spawn", "wall", "exit", "player"];
     range(this.numBoxesY).forEach(function (y) {
       range(this.numBoxesX).forEach(function (x) {
         if (!gamestate.byX[x] || !gamestate.byY[y]) { return; }
         var html = "";
         var entities = intersectEntitySets(gamestate.byX[x], gamestate.byY[y]);
         var entityHtml = "";
-        if (entities.findIndex(e => e.type === "floor") > -1) {
-          html = template.replace("CHAR", "\u25A1").replace("COLOR", "white");
-        }
-        if (entities.findIndex(e => e.type === "spawn") > -1) {
-          html = template.replace("CHAR", "\u25A1").replace("COLOR", "white");
-        }
-        if (entities.findIndex(e => e.type === "wall") > -1) {
-          html = template.replace("CHAR", "\u25A0").replace("COLOR", "red");
-        }
-        if (entities.findIndex(e => e.type === "exit") > -1) {
-          html = template.replace("CHAR", "\uD83C\uDF82").replace("COLOR", "pink");
-        }
-        if (entities.findIndex(e => e.type === "player") > -1) {
-          html = template.replace("CHAR", "\uD83D\uDE0A").replace("COLOR", "yellow");
-        }
+        renderOrder.forEach(function (tileType) {
+		  if (entities.findIndex(e => e.type === tileType) == -1) { return; }
+		  html = template.replace("SVGURL", svgMap[tileType] + ".svg");
+		});
         html = html.replace("X", x * boxWidth).replace("Y", y * boxWidth);
-
         outStr = outStr + html;
       });
       outStr = outStr + "<br>"
