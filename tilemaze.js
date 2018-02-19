@@ -23,6 +23,7 @@
       counter: 0,
       nextID: 0,
       entities: {},
+      level: null,
       byX: {},
       byY: {},
       byType: {}
@@ -38,7 +39,7 @@
 
     ["byX", "byY", "byType"]
     .forEach(function (mapKey) {
-      var shortKey = mapKey.slice(2).toLowerCase();
+      var shortKey = mapKey.slice(2).toLowerCase(); // eg "x", "y", "type" - ugh, confusing TODO cleanup
       var entityMap = gamestate[mapKey];
       if (!entityMap[entity[shortKey]]) {
         entityMap[entity[shortKey]] = [];
@@ -97,10 +98,37 @@
   this.startGame = function () {
     var gamestate = newGameState();
     this.gamestate = gamestate;
-    populateLevel(gamestate, testLevelData, testLevelTypeMap);
-    var spawnPoint = gamestate.byType["spawn"][0];
-    addEntity(gamestate, "player", spawnPoint.x, spawnPoint.y);
+    moveToLevel(gamestate, testLevelData1, testLevelTileDataMap, "spawn");
+    
     return gamestate;
+  };
+  
+  this.unloadLevelEntities = function (gamestate) {
+    Object.keys(gamestate.entities)
+	.filter(function (id) { return (gamestate.entities[id].levelBound === true); })
+	.forEach(function (id) {
+	  removeEntity(gamestate, gamestate.entities[id]);
+	});
+  };
+  
+  this.moveToLevel = function (gamestate, levelData, levelTileDataMap, entranceName) {
+	var players = ("player" in gamestate.byType) ? gamestate.byType["player"] : [];
+	players.forEach(function (e) {
+      removeEntity(gamestate, e);
+	});
+	
+	unloadLevelEntities(gamestate);
+	var level = loadLevel(levelData, levelTileDataMap);
+	level.forEach(function (tile, i) {
+	  var entityId = addEntity(gamestate, tile.type, tile.x, tile.y);
+	  var tileEntity = gamestate.entities[entityId];
+	  tileEntity.levelBound = true;
+	  tileEntity.sourceTile = tile;
+    });
+    var spawnPoint = gamestate
+    .byType["stairs"]
+    .filter(function (e) { return (e.sourceTile.linkName === entranceName); })[0];
+    addEntity(gamestate, "player", spawnPoint.x, spawnPoint.y);
   };
 
   this.keyPress = function (e) {
@@ -122,10 +150,25 @@
     var entitiesAtDestination = intersectEntitySets(
       gamestate.byX[newX], gamestate.byY[newY]);
 
+    var stairs = entitiesAtDestination
+    .filter(e => e.type === "stairs")
+    .filter(e => e.sourceTile.destination);
+    
     if (entitiesAtDestination.filter(e => e.type === "exit").length > 0) {
       alert("Found the glowing thing! Winner");
-      newX = 17;  newY = 5; // TODO: add new levels and named connections
     }
+    else if (stairs.length > 0) {
+	  var stairEntity = stairs[0];
+	  var levelDataMap = { // TODO cleanup
+		"testLevelData1" : testLevelData1,
+		"testLevelData2" : testLevelData2,
+	  };
+	  var sourceTile = stairEntity.sourceTile;
+	  var levelData = levelDataMap[sourceTile.destination];
+	  moveToLevel(gamestate, levelData, testLevelTileDataMap, sourceTile.linkName);
+	  draw(gamestate);
+	  return;
+	}
     else if (entitiesAtDestination.filter(e => e.type === "wall").length > 0) {
       return;
     }
@@ -145,9 +188,10 @@
      spawn: "floor",
      wall: "bricks",
      exit: "glowycircle",
-     player: "smiles"
+     player: "smiles",
+     stairs: "glowycircle",
     };
-    var renderOrder = ["floor", "spawn", "wall", "exit", "player"];
+    var renderOrder = ["floor", "spawn", "wall", "stairs", "exit", "player"];
     range(this.numTilesY).forEach(function (y) {
       range(this.numTilesX).forEach(function (x) {
         if (!gamestate.byX[x] || !gamestate.byY[y]) { return; }
@@ -167,10 +211,39 @@
     $("#viewport").empty().append(view);
   };
 
-  this.testLevelData = [
+  this.loadLevel = function (levelData, tileDataMap) {
+	var level = [];
+    levelData.split('\n').forEach(function (rowStr, rowNum) {
+      rowStr.split('').forEach(function (char, colNum) {
+        var tileData = tileDataMap[char].split(" ");
+        var levelTile = {
+		  type: tileData[0],
+		  x: colNum,
+		  y: rowNum
+		};
+        if (levelTile.type === "stairs") {
+		  levelTile.linkName = tileData[1];
+		  levelTile.destination = tileData[2];
+		}
+		level.push(levelTile);
+      });
+    });
+    return level;
+  };
+  
+  this.testLevelTileDataMap = {
+    " ": "floor",
+    "1": "wall",
+    "2": "stairs spawn",
+    "3": "exit",
+    "4": "stairs testLink testLevelData2",
+    "5": "stairs testLink testLevelData1"
+  };
+  
+  this.testLevelData1 = [
     "1111111111111111111",
     "1 1    1   1      1",
-    "1    1   1 1 1111 1",
+    "1  4 1   1 1 1111 1",
     "1 111111 1   1 1  1",
     "1       11 11  1 11",
     "111111 1      1   1",
@@ -184,23 +257,14 @@
     "1    1     1      1",
     "1111111111111111111",
   ].join("\n");
-
-  this.testLevelTypeMap = {
-    " ": "floor",
-    "1": "wall",
-    "2": "spawn",
-    "3": "exit"
-  };
-
-  this.populateLevel = function (gamestate, levelData, typeMap) {
-    levelData.split('\n').forEach(function (rowStr, rowNum) {
-      rowStr.split('').forEach(function (char, colNum) {
-        var entityType = typeMap[char];
-        addEntity(gamestate, entityType, colNum, rowNum);
-      });
-    });
-  };
-
-
+  
+    this.testLevelData2 = [
+    "1111111111",
+    "1        1",
+    "1  5 1   1",
+    "1   1    1",
+    "1  1   2 1",
+    "1111111111",
+  ].join("\n");
 
 }).apply(this);
