@@ -97,7 +97,7 @@
   this.startGame = function () {
     var gamestate = newGameState();
     this.gamestate = gamestate;
-    populateLevel(gamestate);
+    populateLevel(gamestate, testLevelData, testLevelTypeMap);
     var spawnPoint = gamestate.byType["spawn"][0];
     addEntity(gamestate, "player", spawnPoint.x, spawnPoint.y);
     return gamestate;
@@ -192,11 +192,7 @@
     "3": "exit"
   };
 
-  this.populateLevel = function (gamestate, levelDataStr) {
-    // for now ignore levelData and populate with hardcoded:
-    var levelData = testLevelData;
-    var typeMap = testLevelTypeMap;
-
+  this.populateLevel = function (gamestate, levelData, typeMap) {
     levelData.split('\n').forEach(function (rowStr, rowNum) {
       rowStr.split('').forEach(function (char, colNum) {
         var entityType = typeMap[char];
