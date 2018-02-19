@@ -1,9 +1,9 @@
 (function () {
-  this.boxWidth = 30;
-  this.numBoxesX = 20;
-  this.numBoxesY = 15;
-  this.viewWidth = this.boxWidth * this.numBoxesX;
-  this.viewHeight = this.boxWidth * this.numBoxesY;
+  this.tilePixelWidth = 30;
+  this.numTilesX = 20;
+  this.numTilesY = 15;
+  this.viewWidth = this.tilePixelWidth * this.numTilesX;
+  this.viewHeight = this.tilePixelWidth * this.numTilesY;
   this.gamestate = null;
 
   // range(5) => [0, 1, 2, 3, 4]
@@ -148,8 +148,8 @@
      player: "smiles"
     };
     var renderOrder = ["floor", "spawn", "wall", "exit", "player"];
-    range(this.numBoxesY).forEach(function (y) {
-      range(this.numBoxesX).forEach(function (x) {
+    range(this.numTilesY).forEach(function (y) {
+      range(this.numTilesX).forEach(function (x) {
         if (!gamestate.byX[x] || !gamestate.byY[y]) { return; }
         var html = "";
         var entities = intersectEntitySets(gamestate.byX[x], gamestate.byY[y]);
@@ -158,7 +158,7 @@
 		  if (entities.findIndex(e => e.type === tileType) == -1) { return; }
 		  html = template.replace("SVGURL", svgMap[tileType] + ".svg");
 		});
-        html = html.replace("X", x * boxWidth).replace("Y", y * boxWidth);
+        html = html.replace("X", x * tilePixelWidth).replace("Y", y * tilePixelWidth);
         outStr = outStr + html;
       });
       outStr = outStr + "<br>"
