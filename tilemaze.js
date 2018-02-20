@@ -189,7 +189,7 @@
      wall: "bricks",
      exit: "glowycircle",
      player: "smiles",
-     stairs: "glowycircle",
+     stairs: "stairs",
     };
     var renderOrder = ["floor", "spawn", "wall", "stairs", "exit", "player"];
     range(this.numTilesY).forEach(function (y) {
@@ -263,7 +263,7 @@
     "1        1",
     "1  5 1   1",
     "1   1    1",
-    "1  1   2 1",
+    "1  1     1",
     "1111111111",
   ].join("\n");
 
