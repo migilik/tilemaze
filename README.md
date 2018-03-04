@@ -1,6 +1,8 @@
 # tilemaze
 2d HTML game
 
+Use arrow keys to move. Find the goal!
+
 Try it out at https://migilik.github.io/tilemaze/
 
 Or clone and run a simple static-content http server locally.
