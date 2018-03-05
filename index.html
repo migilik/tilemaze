@@ -7,7 +7,7 @@
 
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
   <script src="tilemaze.js"></script>
-  <script>$(document).ready(ready);</script>
+  <script>$(ready);  $(window).on("load", onWindowLoaded);</script>
 
   <style>
   #viewport {
@@ -24,8 +24,10 @@
 </head>
 
 <body>
-  <div id="viewport">This page is only supported for recent versions of Chrome.</div>
-  <div id="hinttext"></div>
+  <object id="view" data="viewport.svg" width="500" height="400"></object>
+  <div><i>Note: currently focusing the view will drop keyboard input.  Click outside view to regain it.</i></div>
+  <div id="hinttext">This page is only supported for recent versions of Chrome.</div>
+  
 </body>
 
 </html>

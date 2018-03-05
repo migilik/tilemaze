@@ -1,0 +1,114 @@
+<!DOCTYPE svg>
+<svg xmlns="http://www.w3.org/2000/svg">
+ <svg id="camera">
+  <g id="camerazoom" transform="scale(30)">
+   <g id="camerarotate" transform="rotate(0)">
+    <g id="cameraoffset" transform="translate(0,0)">
+     <g id="scene">
+     </g>
+    </g>
+   </g>
+  </g>
+ </svg>
+ 
+ <defs id="sprites">
+ 
+  <svg id="smiles" x="-0.5" y="-0.5" width="1" height="1">
+   <g transform="scale(0.01)">
+   <circle cx="50" cy="50" r="42" style="fill:rgb(255,255,100);stroke-width=8;stroke:black" />
+   <ellipse cx="35" cy="35" rx="10" ry="15" style="fill:white" />
+   <ellipse cx="65" cy="35" rx="10" ry="15" style="fill:white" />
+   <circle cx="38" cy="40" r="8" style="fill:black" />
+   <circle cx="68" cy="40" r="8" style="fill:black" />
+   <path d="M30 50 T30 70 T70 70 T30 70" />
+   </g>
+  </svg>
+  
+  <svg id="glowycircle" x="-0.5" y="-0.5" width="1" height="1">
+   <g transform="scale(0.01)">
+   <defs>
+    <radialGradient id="gradient">
+     <stop offset="0%" style="stop-color:blue" />
+     <stop offset="70%" style="stop-color:white">
+     <animate attributeName="stop-color" attributeType="CSS" values="white;pink;black;purple;white" dur="3s" repeatCount="indefinite" />
+     </stop>
+     <stop offset="100%" style="stop-color:cyan" />
+    </radialGradient>
+   </defs>
+   <circle cx="50" cy="50" r="40" fill="url(#gradient)"/>
+   </g>
+  </svg>
+  
+  <svg id="floor" x="-0.5" y="-0.5" width="1" height="1">
+   <g transform="scale(0.01)">
+   <filter id="bumpyFilter" filterUnits="objectBoundingBox">
+    <feTurbulence type="turbulence" baseFrequency="0.01" numOctaves="8" stitchTiles="stitch" />
+   </filter>
+   <rect width="100" height="100" filter="url(#bumpyFilter)" />
+   </g>
+  </svg>
+
+  <svg id="blackbox" x="-0.5" y="-0.5" width="1" height="1">
+   <g transform="scale(0.01)">
+    <polyline points="1,1 1,99, 99,99 99,1" style="fill:rgb(0,0,0);" />
+   </g>
+  </svg>
+  
+  <svg id="stairs" x="-0.5" y="-0.5" width="1" height="1">
+   <g transform="scale(0.01)">
+    <polyline points="5,5 5,95 95,95 95,65 65,65 65,35 35,35 35,5" style="fill:rgb(220,210,210);stroke-width=6;stroke:black" />
+   </g>
+  </svg>
+  
+  <svg id="bricks" x="-0.5" y="-0.5" width="1" height="1">
+   <g transform="scale(0.01)">
+   <rect width="100" height="100" style="fill:rgb(255,0,0)" />
+   <rect x="5" y="5" width="40" height="22" style="fill:rgb(120, 00,0);stroke-width:5;stroke:rgb(255,250,230)" />
+   <rect x="55" y="5" width="43" height="22" style="fill:rgb(120, 00,0);stroke-width:5;stroke:rgb(255,250,230)" />
+   <rect x="2" y="37" width="20" height="24" style="fill:rgb(120, 00,0);stroke-width:5;stroke:rgb(255,250,230)" />
+   <rect x="30" y="38" width="60" height="24" style="fill:rgb(120, 00,0);stroke-width:5;stroke:rgb(255,250,230)" />
+   <rect x="4" y="72" width="42" height="21" style="fill:rgb(120, 00,0);stroke-width:5;stroke:rgb(255,250,230)" />
+   <rect x="54" y="71" width="41" height="23" style="fill:rgb(120, 00,0);stroke-width:5;stroke:rgb(255,250,230)" />
+   </g>
+  </svg>
+  
+  <svg id="cake" x="-0.5" y="-0.5" width="1" height="1">
+   <g transform="scale(0.01)">
+   <defs>
+    <radialGradient id="gradient">
+     <stop offset="0%" style="stop-color:white" />
+     <stop offset="70%" style="stop-color:orange"/>
+     <stop offset="100%" style="stop-color:yellow" />
+    </radialGradient>
+   </defs>
+
+   <path d="
+    M 20 45
+    L 20 70
+    A 30 10 0 0 0 50 80
+    A 30 10 0 0 0 80 70
+    L 80 45 Z"
+    stroke="#e2e08c" fill="#fffddb" />
+  
+   <ellipse cx="50" cy="45" rx="30" ry="10"
+    stroke="#ffe5f8" fill="white" stroke-width="3" />
+  
+   <circle r="4" cx="28" cy="40" fill="red" stroke="#8e0000" />
+   <circle r="4" cx="72" cy="40" fill="red" stroke="#8e0000" />
+ 
+   <circle r="3" cx="42" cy="34" fill="red" stroke="#8e0000" />
+   <circle r="3" cx="58" cy="34" fill="red" stroke="#8e0000" />
+ 
+   <rect x="47" y="25" width="6" height="18" fill="white" stroke="gray" />
+ 
+   <circle r="5" cx="41" cy="46" fill="red" stroke="#8e0000" />
+   <circle r="5" cx="59" cy="46" fill="red" stroke="#8e0000" />
+ 
+   <circle cx="50" cy="20" r="8" fill="url(#gradient)">
+    <animate attributeName="r" attributeType="CSS" values="5;8;10;8;5" dur="5s" repeatCount="indefinite" />
+   </circle>
+   </g>
+  </svg>
+  
+ </defs>
+</svg>

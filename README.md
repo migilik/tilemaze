@@ -12,6 +12,6 @@ npm install http-server -g
 
 Then running:
 http-server
-
+from the project folder,
 and visiting the displayed url in a browser.
 (see https://www.npmjs.com/package/http-server)

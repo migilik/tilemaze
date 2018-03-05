@@ -1,10 +1,20 @@
 (function () {
+  // client html should do:
+  //  $(ready);
+  //  $(window).on("load", onWindowLoaded);
+  // Former hook starts app init on DOM-ready, and
+  // later is to resolve a promise that is used to block
+  // eg first redraw until the viewport svg is actually loaded.
+  this.windowLoaded = $.Deferred();
+  this.onWindowLoaded = function () { windowLoaded.resolve(); };
+  
   this.tilePixelWidth = 30;
   this.numTilesX = 20;
   this.numTilesY = 15;
   this.viewWidth = this.tilePixelWidth * this.numTilesX;
   this.viewHeight = this.tilePixelWidth * this.numTilesY;
   this.gamestate = null;
+  this.svgNS = "http://www.w3.org/2000/svg";
 
   // eg: range(5) => [0, 1, 2, 3, 4]
   this.range = function (x) {
@@ -100,11 +110,12 @@
   };
 
   this.ready = function () {
-    $("#viewport").empty().append($("<span>Loading.. please wait.</span>"));
-
+	hintText("Loading.. please wait...");
+	
     Promise.resolve()
     .then(loadResources)
-    .then(initEngine)
+    .then(waitForView)
+    .then(bindControls)
     .then(startGame)
     .then(draw);
   };
@@ -114,15 +125,16 @@
     return;
   };
 
-  this.initEngine = function () {
-    var vp = $("#viewport");
-    vp.empty();
-    vp.css("height", viewHeight);
-    vp.css("width", viewWidth);
-    vp.css("background-color", "gray");
-    vp.css("color", "white");
-
+  this.bindControls = function () {
+    // seems we need both of these for keyboard handling to work through
+    // the view svg, but the behavior appears a little odd..
+    // TODO investigate further
     $(window).on("keydown", keyPress);
+    //$("#view").on("keydown", keyPress);
+  };
+  
+  this.waitForView = function () {
+    return windowLoaded; // can not guarantee svg access until svg loads
   };
 
   this.startGame = function () {
@@ -206,11 +218,22 @@
   function svgAmongEntities(svg, entities) {
     return (entities.filter(e => e.svg === svg).length > 0);
   };
+  
+  this.makeSvgNode = function (href, x, y) {
+    var svgUse = document.createElementNS(svgNS, "use");
+    svgUse.setAttribute("href", href);
+    var xformStr = "translate(X,Y)".replace("X", x).replace("Y", y);
+    svgUse.setAttribute("transform", xformStr);
+    return svgUse;
+  };
 
   this.draw = function (gamestate) {
-    var outStr = "";
-    var rowCounter = 0;
-    var template = '<div class="renderBox" style="left: Xpx; top: Ypx;"><img src="SVGURL" alt="ALTTEXT" width="100%" height="100%" /></div>';
+	// need to pass contentDocument as context to JQuery for
+	// svg element manipulation to work right when using external svg:
+	var view = $("#view");
+	var svgContentDocument = view[0].contentDocument;
+	var scene = $("#scene", svgContentDocument);
+	scene.empty();
     
     // TODO instead of a hardcoded render order by svg name, put a z index into tileData.
     var renderOrder = ["floor", "cake", "spawn", "bricks", "stairs", "glowycircle", "smiles"];
@@ -222,18 +245,13 @@
         var entities = intersectEntitySets(atX, atY);
         var svgsToRender = renderOrder.filter(svg => svgAmongEntities(svg, entities));
         var svg = svgsToRender.slice(-1, svgsToRender.length)[0]; // uppermost only
-        var svgName = svg ? svg + ".svg" : "blackbox.svg";
-        var html = template
-         .replace("SVGURL", svgName)
-         .replace("X", x * tilePixelWidth)
-         .replace("Y", y * tilePixelWidth)
-         .replace("ALTTEXT", entities.map(e => e.sourceStr).join("|")); // debug
-        outStr = outStr + html;
+        
+        if (svg) {
+		  var svgNode = makeSvgNode("viewport.svg#" + svg, x, y);
+		  scene.append($(svgNode));
+		}
       });
-      outStr = outStr + "<br>"
     });
-    var view = $("<div>" + outStr + "</div>");
-    $("#viewport").empty().append(view);
   };
   
   
