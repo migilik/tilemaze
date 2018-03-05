@@ -15,6 +15,12 @@
   this.viewHeight = this.tilePixelWidth * this.numTilesY;
   this.gamestate = null;
   this.svgNS = "http://www.w3.org/2000/svg";
+  
+  // arbitrary camera transform setting the "center" of the screen
+  // relative to top left, in number of tiles.. this needs to be
+  // done a better way.
+  this.cameraFocusX = 11;
+  this.cameraFocusY = 6;
 
   // eg: range(5) => [0, 1, 2, 3, 4]
   this.range = function (x) {
@@ -226,6 +232,14 @@
     svgUse.setAttribute("transform", xformStr);
     return svgUse;
   };
+  
+  this.updateCameraPosition = function (gamestate, svgCamera) {
+	var player = one(gamestate.byType, "player");
+	var camX = cameraFocusX - player.x;
+	var camY = cameraFocusY - player.y;
+	var newTransformStr = "translate(X, Y)".replace("X", camX).replace("Y", camY);
+	svgCamera.attr("transform", newTransformStr);
+  };
 
   this.draw = function (gamestate) {
 	// need to pass contentDocument as context to JQuery for
@@ -233,7 +247,12 @@
 	var view = $("#view");
 	var svgContentDocument = view[0].contentDocument;
 	var scene = $("#scene", svgContentDocument);
+	var svgCamera = $("#cameraoffset", svgContentDocument);
+	
 	scene.empty();
+	updateCameraPosition(gamestate, svgCamera);
+	
+	
     
     // TODO instead of a hardcoded render order by svg name, put a z index into tileData.
     var renderOrder = ["floor", "cake", "spawn", "bricks", "stairs", "glowycircle", "smiles"];
