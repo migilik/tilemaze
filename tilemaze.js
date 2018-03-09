@@ -78,7 +78,7 @@
   };
   
   // the keys subject to indexing in gamestate.byType (these are property names of entities)
-  this.typeFlagsToIndex = [ "player", "wall", "floor", "exit", "goal", "levelBound" ];
+  this.typeFlagsToIndex = [ "player", "wall", "floor", "exit", "goal", "levelBound", "key", "lock" ];
   
   // 'add' entity to gamestate by registering entity in various indices
   // the gamestate uses to look up relevant entities
@@ -146,7 +146,7 @@
   this.startGame = function () {
     var gamestate = newGameState();
     this.gamestate = gamestate;
-    var player = { player: true, svg: "smiles", x: null, y: null };
+    var player = { player: true, svg: "smiles", x: null, y: null, keys: new Set() };
     addEntity(gamestate, player);
     moveToLevel(gamestate, testLevel1, "spawn");
     return gamestate;
@@ -162,6 +162,21 @@
 	gamestate.level = level;
 	level.tiles.forEach(function (tile, i) {
 	  addEntity(gamestate, tile);
+	  if ("spawner" in tile) {
+		var doSpawn = true;
+	    var spawnerType = tile.spawner;
+	    // TODO: this is too simplistic. really need a event/trigger
+	    // system for level scripting.. just a bandaid to test whether
+	    // key and lock work
+	    if (spawnerType === "key" && player.keys.has("testkey")) { doSpawn = false; }
+	    var spawnedEntity = {
+		  svg: spawnerType, levelBound: true, x: tile.x, y: tile.y
+		};
+		if (doSpawn) {
+	      spawnedEntity[spawnerType] = true;
+	      addEntity(gamestate, spawnedEntity);
+	    }
+	  }
     });
     var spawnPoint = level.entrances[entranceName];
     moveEntity(gamestate, player, spawnPoint.x, spawnPoint.y);
@@ -192,6 +207,8 @@
     var hasFloor = (entitiesAtDestination.filter(e => "floor" in e).length > 0);
     var hasWall = (entitiesAtDestination.filter(e => "wall" in e).length > 0);
     var hasGoal = (entitiesAtDestination.filter(e => "goal" in e).length > 0);
+    var hasKey = (entitiesAtDestination.filter(e => "key" in e).length > 0);
+    var hasLock = (entitiesAtDestination.filter(e => "lock" in e).length > 0);
     var hasExit = (exitTiles.length > 0);
     
     var moveHintText = "";
@@ -199,6 +216,22 @@
     
     if (hasWall) { moveHintText = "BONK"; allowMove = false; }
     if (hasGoal) { moveHintText = "Found the glowing thing! Winner!"; }
+    
+    // TODO: currently assumes only one key-lock pair "testkey"
+    // in existence (proof-of-concept):
+    if (hasLock) {
+	  if (player.keys.has("testkey")) {
+	    removeEntity(gamestate, one(gamestate.byType, "lock"));
+	  }
+	  else {
+		moveHintText = "BONK! Need a key..."; allowMove = false;
+      }
+	}
+	if (hasKey) {
+	  player.keys.add("testkey");
+	  removeEntity(gamestate, one(gamestate.byType, "key"));
+	  moveHintText = "Got the key.";
+    }
     
     if (hasExit) {
 	  var exit = exitTiles[0].exit;
@@ -255,7 +288,7 @@
 	
     
     // TODO instead of a hardcoded render order by svg name, put a z index into tileData.
-    var renderOrder = ["floor", "cake", "spawn", "bricks", "stairs", "glowycircle", "smiles"];
+    var renderOrder = ["floor", "cake", "spawn", "bricks", "stairs", "key", "lock", "glowycircle", "smiles"];
     
     range(this.numTilesY).forEach(function (y) {
       range(this.numTilesX).forEach(function (x) {
@@ -284,7 +317,7 @@
 
   // fields allowed in tile data of json level data format - these fields will get
   // copied into loaded level data.  could eventually put validation rules here too..
-  this.validTileDataFields = [ "floor", "wall", "goal", "entrance", "exit", "svg" ];
+  this.validTileDataFields = [ "floor", "wall", "goal", "entrance", "exit", "svg", "spawner" ];
   
   this.loadLevel = function (levelJson) {
     hintText("Now entering " + levelJson.name + " ... ");
@@ -330,22 +363,30 @@
   this.testLevel1 = {
     name: "testLevel1",
 	tileDataMap: {
-      " ": { floor: true, svg: "floor",  },
-      "0": { svg: "blackbox" },
+      ".": { floor: true, svg: "floor",  },
+      " ": { svg: "blackbox" },
       "1": { wall: true, svg: "bricks" },
       "2": { entrance: "spawn", floor: true, svg: "floor" },
       "3": { goal: true, floor: true, svg: "glowycircle" },
       "4": { entrance: "stairs1", exit: "testLevel2.stairs1", svg: "stairs" },
       "5": { entrance: "stairs1", exit: "testLevel1.stairs1", svg: "stairs" },
       "6": { entrance: "stairs2", exit: "testLevel2.stairs2", svg: "stairs" },
-      "7": { entrance: "stairs2", exit: "testLevel1.stairs2", svg: "stairs" }
+      "7": { entrance: "stairs2", exit: "testLevel1.stairs2", svg: "stairs" },
+      "8": { floor: true, spawner: "key", svg: "floor" },
+      "9": { floor: true, spawner: "lock", svg: "floor" },
+      "a": { entrance: "stairs3", exit: "testLevel2.stairs3", svg: "stairs" },
+      "b": { entrance: "stairs3", exit: "testLevel1.stairs3", svg: "stairs" },
     },
     tileData: [
-      "011100000000111",
-      "11 1100000011 11",
-      "12 4100000016 31",
-      "11 1100000011 11",
-      "011100000000111",
+      " 111        111 ",
+      "11.11      11.11",
+      "12.41      16.31",
+      "11.11      11.11",
+      " 11111111111111 ",
+      " 1...a........1 ",
+      " 1........8...1 ",
+      " 1............1 ",
+      " 11111111111111 "
     ].join("\n")
   };
   
@@ -353,10 +394,13 @@
     name: "testLevel2",
 	tileDataMap: testLevel1.tileDataMap,
 	tileData: [
-      "0",
-      "00111111111111",
-      "0015        71",
-      "00111111111111",
+      " ",
+      "  111111111111",
+      "  15....9...71",
+      "  111.11111111",
+      "    1.1",
+      "    1b1",
+      "    111"
     ].join("\n")
   };
   
