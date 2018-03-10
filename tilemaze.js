@@ -9,10 +9,6 @@
   this.onWindowLoaded = function () { windowLoaded.resolve(); };
   
   this.tilePixelWidth = 30;
-  this.numTilesX = 20;
-  this.numTilesY = 15;
-  this.viewWidth = this.tilePixelWidth * this.numTilesX;
-  this.viewHeight = this.tilePixelWidth * this.numTilesY;
   this.gamestate = null;
   this.svgNS = "http://www.w3.org/2000/svg";
   
@@ -75,7 +71,7 @@
   };
   
   // the keys subject to indexing in gamestate.byType (these are property names of entities)
-  this.typeFlagsToIndex = [ "player", "wall", "floor", "exit", "goal", "levelBound", "key", "lock" ];
+  this.typeFlagsToIndex = [ "player", "wall", "floor", "exit", "goal", "levelBound", "key", "lock", "svg" ];
   
   // 'add' entity to gamestate by registering entity in various indices
   // the gamestate uses to look up relevant entities
@@ -152,7 +148,7 @@
     var gamestate = new GameState();
     this.gamestate = gamestate;
     var player = {
-      player: true, svg: "smiles", x: null, y: null, r:0.5, tileCover: [],
+      player: true, svg: "smiles", x: null, y: null, r: 0.4, tileCover: [],
       runspeed: 0.25, keys: new Set(), recentEntrance: null
     };
     addEntity(gamestate, player);
@@ -178,7 +174,8 @@
 	      // key and lock work
 	      if (spawnerType === "key" && player.keys.has("testkey")) { doSpawn = false; }
 	      var spawnedEntity = {
-          svg: spawnerType, levelBound: true, x: tile.x, y: tile.y, 
+          svg: spawnerType, levelBound: true,
+          x: tile.x + 0.5, y: tile.y + 0.5, r: 0.5,
           tileCover: [ new Vector([tile.x, tile.y]) ]
         };
 		    if (doSpawn) {
@@ -190,7 +187,7 @@
     var spawnEntity = level.entrances[entranceName];
     var spawnPoint = new Vector([spawnEntity.x, spawnEntity.y]);
     player.recentEntrance = entranceName;
-    moveEntity(gamestate, player, spawnPoint, [ spawnPoint ]);
+    moveEntity(gamestate, player, spawnPoint.add(new Vector([0.5, 0.5])), [ spawnPoint ]);
   };
 
   function keyPress (e) {
@@ -201,9 +198,56 @@
     if (keyCode == 37) { tryMove([-1, 0]); }
   };
   
+  function tileCorners (tilePosition) {
+    return [
+      tilePosition,
+      tilePosition.add(new Vector([0, 1])),
+      tilePosition.add(new Vector([1, 0])),
+      tilePosition.add(new Vector([1, 1]))
+    ];
+  };
+  
+  function doesTileIntersectCircle (tile, center, radius) {
+    // strategy: check if same x or same y, in which case will check
+    // axis-aligned distance, otherwise check tile corners
+    var dims = range(2);
+    
+    var axisAlignedCheck = dims.map(dim => {
+      if (tile.components[dim] !== center.floor().components[dim]) {
+        return false;
+      }
+      var otherDim = (dim + 1) % 2;
+      var tileCenter = tile.components[otherDim] + 0.5;
+      return (Math.abs(center.components[otherDim] - tileCenter) <= 0.5);
+    });
+    
+    if (axisAlignedCheck.reduce((a, b) => a || b, false) === true) {
+      return true;
+    }
+    
+    var distancesSq = tileCorners(tile)
+      .map(corner => corner.add(center.scale(-1)).magnitudeSquared());
+    var radiusSquared = radius * radius;
+    var inRange = distancesSq.map(d2 => d2 <= radiusSquared);
+    return inRange.reduce((a, b) => a && b, true);
+  };
+  
   function intersectCircleVsGrid(center, radius) {
-    // TODO: actually check if intersecting other boxes!
-    return [ center.floor() ]; 
+    // not the most efficient way to do this, but currently
+    // assuming radius will usually be on order of [0,10].. that is
+    // subtile, tile, or handful of tiles.
+    var intRadius = Math.ceil(radius);
+    var scanHalfDiagonal = new Vector ([intRadius, intRadius]);
+    var centerTile = center.floor();
+    var scanTopLeft = centerTile.add(scanHalfDiagonal.scale(-1));
+    var scanBottomRight = centerTile.add(scanHalfDiagonal);
+    var scanDiagonal = scanHalfDiagonal.scale(2);
+    var scanRanges = scanDiagonal.components.map(x => range(x + 1));
+    
+    var tiles = cartesianProduct(scanRanges[0], scanRanges[1])
+    .map(xy => scanTopLeft.add(new Vector(xy)))
+    .filter(v => doesTileIntersectCircle(v, center, radius));
+    return tiles; 
   };
   
   function tryMove(heading) {
@@ -298,10 +342,6 @@
     draw(gamestate);
   };
   
-  function svgAmongEntities(svg, entities) {
-    return (entities.filter(e => e.svg === svg).length > 0);
-  };
-  
   function makeSvgNode (href, x, y) {
     var svgUse = document.createElementNS(svgNS, "use");
     svgUse.setAttribute("href", href);
@@ -329,22 +369,22 @@
     scene.empty();
     updateCameraPosition(gamestate, svgCamera);
     
-    // TODO instead of a hardcoded render order by svg name, put a z index into tileData.
-    var renderOrder = ["floor", "cake", "spawn", "bricks", "stairs", "key", "lock", "glowycircle", "smiles"];
-    
-    range(this.numTilesY).forEach(function (y) {
-      range(this.numTilesX).forEach(function (x) {
-        var atX = all(gamestate.byX, x);
-        var atY = all(gamestate.byY, y);
-        var entities = intersectEntitySets(atX, atY);
-        var svgsToRender = renderOrder.filter(svg => svgAmongEntities(svg, entities));
-        var svg = svgsToRender.slice(-1, svgsToRender.length)[0]; // uppermost only
-        
-        if (svg) {
-          var svgNode = makeSvgNode("viewport.svg#" + svg, x, y);
-          scene.append($(svgNode));
-        }
-      });
+    var renderables = all(gamestate.byType, "svg");
+    renderables.forEach(e => {
+      var renderWorldX = e.x;
+      var renderWorldY = e.y;
+      if (hasValue(e.r)) {
+        // single-tile svgs already have equal game x/y and display x/y,
+        // both at top-left corner, but everything else needs to be
+        // offset to the appropriate display position
+        // (ie anchor to top-left corner of svg instead of in-game center)
+        // For now, hacky, but just offset via radius if exists.. later
+        // will need a more general mechanism
+        renderWorldX = renderWorldX - e.r;
+        renderWorldY = renderWorldY - e.r;
+      }
+      var svgNode = makeSvgNode("viewport.svg#" + e.svg, renderWorldX, renderWorldY);
+      scene.append($(svgNode));
     });
   };
   
@@ -406,7 +446,7 @@
     name: "testLevel1",
     tileDataMap: {
       ".": { floor: true, svg: "floor",  },
-      " ": { svg: "blackbox" },
+      " ": { wall: true },
       "1": { wall: true, svg: "bricks" },
       "2": { entrance: "spawn", floor: true, svg: "floor" },
       "3": { goal: true, floor: true, svg: "glowycircle" },
@@ -454,6 +494,9 @@
   
   function Vector(componentsArray) {
     // expect floats/ints
+    if ((!("length" in componentsArray)) || componentsArray.length < 0) {
+      throw "Vector() expects a components array";
+    }
     this.components = componentsArray;
     this.inPlace = false; // default is copy-on-write
   };
