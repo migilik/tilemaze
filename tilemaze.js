@@ -1,4 +1,4 @@
-(function () {
+(function TileMaze () { // pseudo-module:  TODO: architecture + break-up
   // client html should do:
   //  $(ready);
   //  $(window).on("load", onWindowLoaded);
@@ -23,7 +23,7 @@
   this.cameraFocusY = 6;
 
   // eg: range(5) => [0, 1, 2, 3, 4]
-  this.range = function (x) {
+  function range (x) {
     var result = [];
     for (var i = 0; i < x; i++) { result.push(i); }
     return result;
@@ -32,49 +32,46 @@
   // All possible pairs [a, b] such that a in A and b in B.
   // Ordering of pairs is undefined and should not be relied on.
   // eg: cartesianProduct([1,2], [4,5]) => [ [1,4], [1,5], [2,4], [2,5] ]
-  this.cartesianProduct = function (A, B) {
+  function cartesianProduct (A, B) {
     return A.map(a => B.map(b => [a, b]))
     .reduce((x, p) => p.concat(x), []);
   };
   
-  this.hasValue = function (x) { return !(x === null || x === undefined); }
+  function hasValue (x) { return !(x === null || x === undefined); }
 
-  this.newGameState = function () {
-    var gs = {
-      counter: 0,
-      level: null,
-      byX: new Map(),
-      byY: new Map(),
-      byType: new Map()
-    };
-    return gs;
+  function GameState () {
+    this.counter = 0;
+    this.level = null;
+    this.byX = new Map();
+    this.byY = new Map();
+    this.byType = new Map();
   };
   
   // used by addEntity: build lookup indices for game entities by relevant keys
-  this.addToIndex = function (index, key, entity) {
-	if (!hasValue(key)) { throw "invalid key: " + toString(key); }
+  function addToIndex (index, key, entity) {
+    if (!hasValue(key)) { throw "invalid key: " + toString(key); }
     if (!index.has(key)) { index.set(key, new Set()); }
     index.get(key).add(entity);
   };
   
   // opposite of addToIndex
-  this.removeFromIndex = function(index, key, entity) {
-	if (!index.has(key)) { return; }
-	if (!index.get(key).has(entity)) { return; }
-	index.get(key).delete(entity);
+  function removeFromIndex (index, key, entity) {
+    if (!index.has(key)) { return; }
+    if (!index.get(key).has(entity)) { return; }
+    index.get(key).delete(entity);
   };
   
   // all elements of index at key
-  this.all = function(index, key) {
+  function all (index, key) {
     if (index.has(key)) { return Array.from(index.get(key).keys()); }
     return [];
   };
   
   // exactly one element of index at key, or exception
-  this.one = function(index, key) {
-	var elements = all(index, key);
-	if (elements.length !== 1) { throw "key " + key + " does not store exactly one value (actual: " + elements.length + ")"; }
-	return elements[0];
+  function one (index, key) {
+    var elements = all(index, key);
+    if (elements.length !== 1) { throw "key " + key + " does not store exactly one value (actual: " + elements.length + ")"; }
+    return elements[0];
   };
   
   // the keys subject to indexing in gamestate.byType (these are property names of entities)
@@ -90,7 +87,7 @@
   // (eg to update position of an entity, first remove it, then update x/y,
   // then re-add it - this is not ideal, and this design could use 
   // improvement (TODO - see also moveEntity function))
-  this.addEntity = function (gamestate, entity) {
+  function addEntity (gamestate, entity) {
     entity.tileCover.map(a => a.components).forEach((xy) => {
       if (hasValue(xy[0])) { addToIndex(gamestate.byX, xy[0], entity); }
       if (hasValue(xy[1])) { addToIndex(gamestate.byY, xy[1], entity); }
@@ -99,7 +96,7 @@
     typeFlags.forEach(typeKey => addToIndex(gamestate.byType, typeKey, entity));
   };
 
-  this.removeEntity = function (gamestate, entity) {
+  function removeEntity (gamestate, entity) {
     entity.tileCover.map(a => a.components).forEach((xy) => {
       removeFromIndex(gamestate.byX, xy[0], entity);
       removeFromIndex(gamestate.byY, xy[1], entity);
@@ -109,7 +106,7 @@
   };
   
   // see comment for addEntity - shortcut method for updating position
-  this.moveEntity = function (gamestate, entity, newXY, newTileCover) {
+  function moveEntity (gamestate, entity, newXY, newTileCover) {
     removeEntity(gamestate, entity);
     entity.x = newXY.components[0];
     entity.y = newXY.components[1];
@@ -117,14 +114,14 @@
     addEntity(gamestate, entity);
   };
 
-  this.intersectEntitySets = function (A, B) {
+  function intersectEntitySets (A, B) {
     return cartesianProduct(A, B)
     .filter(entityPair => entityPair[0] === entityPair[1])
     .map(entityPair => entityPair[0]);
   };
 
-  this.ready = function () {
-	hintText("Loading.. please wait...");
+  function ready () {
+    hintText("Loading.. please wait...");
 	
     Promise.resolve()
     .then(loadResources)
@@ -134,12 +131,12 @@
     .then(draw);
   };
 
-  this.loadResources = function () {
+  function loadResources () {
     // put async external resource loading logic here if needed
     return;
   };
 
-  this.bindControls = function () {
+  function bindControls () {
     // seems we need both of these for keyboard handling to work through
     // the view svg, but the behavior appears a little odd..
     // TODO investigate further
@@ -147,12 +144,12 @@
     //$("#view").on("keydown", keyPress);
   };
   
-  this.waitForView = function () {
+  function waitForView () {
     return windowLoaded; // can not guarantee svg access until svg loads
   };
 
-  this.startGame = function () {
-    var gamestate = newGameState();
+  function startGame () {
+    var gamestate = new GameState();
     this.gamestate = gamestate;
     var player = {
       player: true, svg: "smiles", x: null, y: null, r:0.5, tileCover: [],
@@ -163,7 +160,7 @@
     return gamestate;
   };
   
-  this.moveToLevel = function (gamestate, levelData, entranceName) {
+  function moveToLevel (gamestate, levelData, entranceName) {
 	  var player = one(gamestate.byType, "player");
 	
 	  all(gamestate.byType, "levelBound")
@@ -196,7 +193,7 @@
     moveEntity(gamestate, player, spawnPoint, [ spawnPoint ]);
   };
 
-  this.keyPress = function (e) {
+  function keyPress (e) {
     var keyCode = e.keyCode;
     if (keyCode == 40) { tryMove([0, 1]); }
     if (keyCode == 38) { tryMove([0, -1]); }
@@ -305,7 +302,7 @@
     return (entities.filter(e => e.svg === svg).length > 0);
   };
   
-  this.makeSvgNode = function (href, x, y) {
+  function makeSvgNode (href, x, y) {
     var svgUse = document.createElementNS(svgNS, "use");
     svgUse.setAttribute("href", href);
     var xformStr = "translate(X,Y)".replace("X", x).replace("Y", y);
@@ -313,7 +310,7 @@
     return svgUse;
   };
   
-  this.updateCameraPosition = function (gamestate, svgCamera) {
+  function updateCameraPosition (gamestate, svgCamera) {
     var player = one(gamestate.byType, "player");
     var camX = cameraFocusX - player.x;
     var camY = cameraFocusY - player.y;
@@ -321,7 +318,7 @@
     svgCamera.attr("transform", newTransformStr);
   };
 
-  this.draw = function (gamestate) {
+  function draw (gamestate) {
     // need to pass contentDocument as context to JQuery for
     // svg element manipulation to work right when using external svg:
     var view = $("#view");
@@ -356,7 +353,7 @@
   // cues have not yet been sufficiently developed.
   // this is intended mostly for use with in-dev features as animations,
   // sounds, etc., are a preferable way to indicate what is happening.
-  this.hintText = function (text) {
+  function hintText (text) {
     $("#hinttext").empty().append("<span>TEXT</span>".replace("TEXT", text));
   };
 
@@ -364,7 +361,7 @@
   // copied into loaded level data.  could eventually put validation rules here too..
   this.validTileDataFields = [ "floor", "wall", "goal", "entrance", "exit", "svg", "spawner" ];
   
-  this.loadLevel = function (levelJson) {
+  function loadLevel (levelJson) {
     hintText("Now entering " + levelJson.name + " ... ");
 	  // from json data format to in-memory format with tile mappings already applied
 	  var level = {
@@ -407,7 +404,7 @@
   // so that later (TODO) can move 
   this.testLevel1 = {
     name: "testLevel1",
-	tileDataMap: {
+    tileDataMap: {
       ".": { floor: true, svg: "floor",  },
       " ": { svg: "blackbox" },
       "1": { wall: true, svg: "bricks" },
@@ -437,8 +434,8 @@
   
   this.testLevel2 = {
     name: "testLevel2",
-	tileDataMap: testLevel1.tileDataMap,
-	tileData: [
+    tileDataMap: testLevel1.tileDataMap,
+    tileData: [
       " ",
       "  111111111111",
       "  15....9...71",
@@ -508,5 +505,9 @@
   Vector.prototype.floor = function () {
     return this.makeVector(this.components.map(Math.floor));
   };
+  
+  // exports:
+  this.ready = ready;
+  this.onWindowLoaded = onWindowLoaded;
 
 }).apply(this);
