@@ -83,29 +83,37 @@
   // 'add' entity to gamestate by registering entity in various indices
   // the gamestate uses to look up relevant entities
   // (eg by tile position or type).
+  // Positions are not required to be tile-aligned, but a per-entity
+  // tileCover is used to understand which tiles "bound" the area of
+  // the entity.
   // Do not forget removeEntity when done, or before data gets stale
   // (eg to update position of an entity, first remove it, then update x/y,
   // then re-add it - this is not ideal, and this design could use 
   // improvement (TODO - see also moveEntity function))
   this.addEntity = function (gamestate, entity) {
-    if (hasValue(entity.x)) { addToIndex(gamestate.byX, entity.x, entity); }
-    if (hasValue(entity.y)) { addToIndex(gamestate.byY, entity.y, entity); }
+    entity.tileCover.map(a => a.components).forEach((xy) => {
+      if (hasValue(xy[0])) { addToIndex(gamestate.byX, xy[0], entity); }
+      if (hasValue(xy[1])) { addToIndex(gamestate.byY, xy[1], entity); }
+    });
     var typeFlags = typeFlagsToIndex.filter(typeFlag => typeFlag in entity);
     typeFlags.forEach(typeKey => addToIndex(gamestate.byType, typeKey, entity));
   };
 
   this.removeEntity = function (gamestate, entity) {
-	removeFromIndex(gamestate.byX, entity.x, entity);
-	removeFromIndex(gamestate.byY, entity.y, entity);
-	var typeFlags = typeFlagsToIndex.filter(typeFlag => typeFlag in entity);
+    entity.tileCover.map(a => a.components).forEach((xy) => {
+      removeFromIndex(gamestate.byX, xy[0], entity);
+      removeFromIndex(gamestate.byY, xy[1], entity);
+    });
+    var typeFlags = typeFlagsToIndex.filter(typeFlag => typeFlag in entity);
     typeFlags.forEach(typeKey => removeFromIndex(gamestate.byType, typeKey, entity));
   };
   
   // see comment for addEntity - shortcut method for updating position
-  this.moveEntity = function (gamestate, entity, newX, newY) {
+  this.moveEntity = function (gamestate, entity, newXY, newTileCover) {
     removeEntity(gamestate, entity);
-    entity.x = newX;
-    entity.y = newY;
+    entity.x = newXY.components[0];
+    entity.y = newXY.components[1];
+    entity.tileCover = newTileCover;
     addEntity(gamestate, entity);
   };
 
@@ -146,40 +154,46 @@
   this.startGame = function () {
     var gamestate = newGameState();
     this.gamestate = gamestate;
-    var player = { player: true, svg: "smiles", x: null, y: null, keys: new Set() };
+    var player = {
+      player: true, svg: "smiles", x: null, y: null, r:0.5, tileCover: [],
+      runspeed: 0.25, keys: new Set(), recentEntrance: null
+    };
     addEntity(gamestate, player);
     moveToLevel(gamestate, testLevel1, "spawn");
     return gamestate;
   };
   
   this.moveToLevel = function (gamestate, levelData, entranceName) {
-	var player = one(gamestate.byType, "player");
+	  var player = one(gamestate.byType, "player");
 	
-	all(gamestate.byType, "levelBound")
-	.forEach(e => removeEntity(gamestate, e));
+	  all(gamestate.byType, "levelBound")
+     .forEach(e => removeEntity(gamestate, e));
 	
-	var level = loadLevel(levelData);
-	gamestate.level = level;
-	level.tiles.forEach(function (tile, i) {
-	  addEntity(gamestate, tile);
-	  if ("spawner" in tile) {
-		var doSpawn = true;
-	    var spawnerType = tile.spawner;
-	    // TODO: this is too simplistic. really need a event/trigger
-	    // system for level scripting.. just a bandaid to test whether
-	    // key and lock work
-	    if (spawnerType === "key" && player.keys.has("testkey")) { doSpawn = false; }
-	    var spawnedEntity = {
-		  svg: spawnerType, levelBound: true, x: tile.x, y: tile.y
-		};
-		if (doSpawn) {
-	      spawnedEntity[spawnerType] = true;
-	      addEntity(gamestate, spawnedEntity);
-	    }
-	  }
+	  var level = loadLevel(levelData);
+	  gamestate.level = level;
+	  level.tiles.forEach(function (tile, i) {
+	    addEntity(gamestate, tile);
+	    if ("spawner" in tile) {
+		    var doSpawn = true;
+        var spawnerType = tile.spawner;
+        // TODO: this is too simplistic. really need a event/trigger
+        // system for level scripting.. just a bandaid to test whether
+	      // key and lock work
+	      if (spawnerType === "key" && player.keys.has("testkey")) { doSpawn = false; }
+	      var spawnedEntity = {
+          svg: spawnerType, levelBound: true, x: tile.x, y: tile.y, 
+          tileCover: [ new Vector([tile.x, tile.y]) ]
+        };
+		    if (doSpawn) {
+	        spawnedEntity[spawnerType] = true;
+	        addEntity(gamestate, spawnedEntity);
+	      }
+      }
     });
-    var spawnPoint = level.entrances[entranceName];
-    moveEntity(gamestate, player, spawnPoint.x, spawnPoint.y);
+    var spawnEntity = level.entrances[entranceName];
+    var spawnPoint = new Vector([spawnEntity.x, spawnEntity.y]);
+    player.recentEntrance = entranceName;
+    moveEntity(gamestate, player, spawnPoint, [ spawnPoint ]);
   };
 
   this.keyPress = function (e) {
@@ -189,21 +203,42 @@
     if (keyCode == 39) { tryMove([1, 0]); }
     if (keyCode == 37) { tryMove([-1, 0]); }
   };
-
-  this.tryMove = function (heading) {
+  
+  function intersectCircleVsGrid(center, radius) {
+    // TODO: actually check if intersecting other boxes!
+    return [ center.floor() ]; 
+  };
+  
+  function tryMove(heading) {
     var gamestate = this.gamestate;
     if (!gamestate) { return; }
     var player = one(gamestate.byType, "player");
-    var newX = player.x + heading[0];
-    var newY = player.y + heading[1];
-
-    var entitiesAtDestination = intersectEntitySets(
-      all(gamestate.byX, newX), all(gamestate.byY, newY));
+    
+    var newXY = (new Vector(heading))
+     .unitize()
+     .scale(player.runspeed)
+     .add(new Vector([player.x, player.y]));
+    
+    var newTileCover = intersectCircleVsGrid(newXY, player.r);
+    var entitiesAtDestination = newTileCover
+    .map(a => a.components)
+    .map((xy) => {
+      var atX = all(gamestate.byX, xy[0]);
+      var atY = all(gamestate.byY, xy[1]);
+      return intersectEntitySets(atX, atY);
+    })
+    .reduce((a,b) => a.concat(b), []);
     
     // walls block even moves to goals, etc., but having a floor
     // is a pre-requisite for a normal move  
     
     var exitTiles = entitiesAtDestination.filter(e => "exit" in e);
+    if (hasValue(player.recentEntrance)) {
+      var excluded = gamestate.level.entrances[player.recentEntrance];
+      exitTiles = exitTiles
+      .filter(e => e.x !== excluded.x && e.y != excluded.y);
+    }
+    
     var hasFloor = (entitiesAtDestination.filter(e => "floor" in e).length > 0);
     var hasWall = (entitiesAtDestination.filter(e => "wall" in e).length > 0);
     var hasGoal = (entitiesAtDestination.filter(e => "goal" in e).length > 0);
@@ -220,36 +255,48 @@
     // TODO: currently assumes only one key-lock pair "testkey"
     // in existence (proof-of-concept):
     if (hasLock) {
-	  if (player.keys.has("testkey")) {
-	    removeEntity(gamestate, one(gamestate.byType, "lock"));
-	  }
-	  else {
-		moveHintText = "BONK! Need a key..."; allowMove = false;
+      if (player.keys.has("testkey")) {
+        removeEntity(gamestate, one(gamestate.byType, "lock"));
       }
-	}
-	if (hasKey) {
-	  player.keys.add("testkey");
-	  removeEntity(gamestate, one(gamestate.byType, "key"));
-	  moveHintText = "Got the key.";
+      else {
+        moveHintText = "BONK! Need a key..."; allowMove = false;
+      }
+    }
+    if (hasKey) {
+      player.keys.add("testkey");
+      removeEntity(gamestate, one(gamestate.byType, "key"));
+      moveHintText = "Got the key.";
     }
     
     if (hasExit) {
-	  var exit = exitTiles[0].exit;
-	  var levelName = gamestate.level.name;
-	  if (exit.split(".").length == 2) { // cross-level exits use "level.exit" notation
-		levelName = exit.split(".")[0];
-		exit = exit.split(".")[1];
-	  }
-	  
-	  var levelJson = levelJsons[levelName];
-	  moveToLevel(gamestate, levelJson, exit);
-	  draw(gamestate);
-	  return;
-	}
+      var exit = exitTiles[0].exit;
+      var levelName = gamestate.level.name;
+      if (exit.split(".").length == 2) { // cross-level exits use "level.exit" notation
+        levelName = exit.split(".")[0];
+        exit = exit.split(".")[1];
+      }
+      
+      var levelJson = levelJsons[levelName];
+      moveToLevel(gamestate, levelJson, exit);
+      draw(gamestate);
+      return;
+    }
     
     if (!hasFloor) { hintText("No floor there.. scary."); allowMove = false; }
     
-    if (allowMove) { moveEntity(gamestate, player, newX, newY); }
+    if (allowMove) {
+      moveEntity(gamestate, player, newXY, newTileCover);
+      if (hasValue(player.recentEntrance)) {
+        var entranceTile = gamestate.level.entrances[player.recentEntrance];
+        var matchingTiles = newTileCover
+        .filter((t) => {
+          var bx = t.components[0] === entranceTile.x;
+          var by = t.components[1] === entranceTile.y;
+          return (bx && by);
+        });
+        if (matchingTiles.length === 0) { player.recentEntrance = null; }
+      }
+    }
     hintText(moveHintText);
     draw(gamestate);
   };
@@ -267,41 +314,39 @@
   };
   
   this.updateCameraPosition = function (gamestate, svgCamera) {
-	var player = one(gamestate.byType, "player");
-	var camX = cameraFocusX - player.x;
-	var camY = cameraFocusY - player.y;
-	var newTransformStr = "translate(X, Y)".replace("X", camX).replace("Y", camY);
-	svgCamera.attr("transform", newTransformStr);
+    var player = one(gamestate.byType, "player");
+    var camX = cameraFocusX - player.x;
+    var camY = cameraFocusY - player.y;
+    var newTransformStr = "translate(X, Y)".replace("X", camX).replace("Y", camY);
+    svgCamera.attr("transform", newTransformStr);
   };
 
   this.draw = function (gamestate) {
-	// need to pass contentDocument as context to JQuery for
-	// svg element manipulation to work right when using external svg:
-	var view = $("#view");
-	var svgContentDocument = view[0].contentDocument;
-	var scene = $("#scene", svgContentDocument);
-	var svgCamera = $("#cameraoffset", svgContentDocument);
+    // need to pass contentDocument as context to JQuery for
+    // svg element manipulation to work right when using external svg:
+    var view = $("#view");
+    var svgContentDocument = view[0].contentDocument;
+    var scene = $("#scene", svgContentDocument);
+    var svgCamera = $("#cameraoffset", svgContentDocument);
 	
-	scene.empty();
-	updateCameraPosition(gamestate, svgCamera);
-	
-	
+    scene.empty();
+    updateCameraPosition(gamestate, svgCamera);
     
     // TODO instead of a hardcoded render order by svg name, put a z index into tileData.
     var renderOrder = ["floor", "cake", "spawn", "bricks", "stairs", "key", "lock", "glowycircle", "smiles"];
     
     range(this.numTilesY).forEach(function (y) {
       range(this.numTilesX).forEach(function (x) {
-		var atX = all(gamestate.byX, x);
-		var atY = all(gamestate.byY, y);
+        var atX = all(gamestate.byX, x);
+        var atY = all(gamestate.byY, y);
         var entities = intersectEntitySets(atX, atY);
         var svgsToRender = renderOrder.filter(svg => svgAmongEntities(svg, entities));
         var svg = svgsToRender.slice(-1, svgsToRender.length)[0]; // uppermost only
         
         if (svg) {
-		  var svgNode = makeSvgNode("viewport.svg#" + svg, x, y);
-		  scene.append($(svgNode));
-		}
+          var svgNode = makeSvgNode("viewport.svg#" + svg, x, y);
+          scene.append($(svgNode));
+        }
       });
     });
   };
@@ -312,7 +357,7 @@
   // this is intended mostly for use with in-dev features as animations,
   // sounds, etc., are a preferable way to indicate what is happening.
   this.hintText = function (text) {
-	$("#hinttext").empty().append("<span>TEXT</span>".replace("TEXT", text));
+    $("#hinttext").empty().append("<span>TEXT</span>".replace("TEXT", text));
   };
 
   // fields allowed in tile data of json level data format - these fields will get
@@ -321,37 +366,37 @@
   
   this.loadLevel = function (levelJson) {
     hintText("Now entering " + levelJson.name + " ... ");
-	// from json data format to in-memory format with tile mappings already applied
-	var level = {
-	  name: levelJson.name,
-	  tiles: [],
-	  entrances: {}
-	};
+	  // from json data format to in-memory format with tile mappings already applied
+	  var level = {
+	    name: levelJson.name,
+	    tiles: [],
+	    entrances: {}
+	  };
     levelJson.tileData.split('\n').forEach(function (rowStr, rowNum) {
       rowStr.split('').forEach(function (char, colNum) {
-		if (!(char in levelJson.tileDataMap)) {
-	      throw "character " + char + " in tile data not found in tile data map";
-	    }
+		    if (!(char in levelJson.tileDataMap)) {
+	        throw "character " + char + " in tile data not found in tile data map";
+	      }
         var tileData = levelJson.tileDataMap[char];
-        
         var levelTile = {
-		  x: colNum,
-		  y: rowNum,
-		  levelBound: true, // these get removed when moving to a different level
-		  sourceStr: levelJson.name + "[" + colNum + ", " + rowNum + "]" // debug/diagnostic
-		};
-		
-		validTileDataFields
-		  .filter(field => field in tileData)
-		  .forEach(field => levelTile[field] = tileData[field]);
+		      x: colNum,
+		      y: rowNum,
+          tileCover: [ new Vector([ colNum, rowNum ]) ],
+		      levelBound: true, // these get removed when moving to a different level
+		      sourceStr: levelJson.name + "[" + colNum + ", " + rowNum + "]" // debug/diagnostic
+        };
+        
+		    validTileDataFields
+        .filter(field => field in tileData)
+		    .forEach(field => levelTile[field] = tileData[field]);
 		
         if ("entrance" in tileData) {
-		  if (tileData.entrance in level.entrances) {
-		    throw "duplicate entrance name " + tileData.entrance + " in level data";
-		  }
-		  level.entrances[tileData.entrance] = levelTile;
-		}
-		level.tiles.push(levelTile);
+		      if (tileData.entrance in level.entrances) {
+		        throw "duplicate entrance name " + tileData.entrance + " in level data";
+		      }
+		      level.entrances[tileData.entrance] = levelTile;
+		    }
+		    level.tiles.push(levelTile);
       });
     });
     return level;
@@ -368,14 +413,14 @@
       "1": { wall: true, svg: "bricks" },
       "2": { entrance: "spawn", floor: true, svg: "floor" },
       "3": { goal: true, floor: true, svg: "glowycircle" },
-      "4": { entrance: "stairs1", exit: "testLevel2.stairs1", svg: "stairs" },
-      "5": { entrance: "stairs1", exit: "testLevel1.stairs1", svg: "stairs" },
-      "6": { entrance: "stairs2", exit: "testLevel2.stairs2", svg: "stairs" },
-      "7": { entrance: "stairs2", exit: "testLevel1.stairs2", svg: "stairs" },
+      "4": { floor: true, entrance: "stairs1", exit: "testLevel2.stairs1", svg: "stairs" },
+      "5": { floor: true, entrance: "stairs1", exit: "testLevel1.stairs1", svg: "stairs" },
+      "6": { floor: true, entrance: "stairs2", exit: "testLevel2.stairs2", svg: "stairs" },
+      "7": { floor: true, entrance: "stairs2", exit: "testLevel1.stairs2", svg: "stairs" },
       "8": { floor: true, spawner: "key", svg: "floor" },
       "9": { floor: true, spawner: "lock", svg: "floor" },
-      "a": { entrance: "stairs3", exit: "testLevel2.stairs3", svg: "stairs" },
-      "b": { entrance: "stairs3", exit: "testLevel1.stairs3", svg: "stairs" },
+      "a": { floor: true, entrance: "stairs3", exit: "testLevel2.stairs3", svg: "stairs" },
+      "b": { floor: true, entrance: "stairs3", exit: "testLevel1.stairs3", svg: "stairs" },
     },
     tileData: [
       " 111        111 ",
@@ -407,6 +452,61 @@
   this.levelJsons = {
     "testLevel1" : testLevel1,
     "testLevel2" : testLevel2
+  };
+  
+  
+  function Vector(componentsArray) {
+    // expect floats/ints
+    this.components = componentsArray;
+    this.inPlace = false; // default is copy-on-write
+  };
+  
+  Vector.prototype.makeVector = function (newComponents) {
+    if (this.inPlace) {
+      this.components = newComponents;
+      return this;
+    }
+    else { // copy-on-write
+      return new Vector(newComponents);
+    }
+  };
+  
+  Vector.prototype.dot = function (otherVector) {
+    return this.components
+     .map((x, i) => x * otherVector.components[i])
+     .reduce((x, p) => x + p);
+  };
+  
+  Vector.prototype.magnitudeSquared = function () {
+    return this.dot(this);
+  };
+  
+  Vector.prototype.magnitude = function () {
+    return Math.sqrt(this.magnitudeSquared());
+  };
+  
+  Vector.prototype.scale = function (scalingFactor) {
+    return this.makeVector(this.components.map(x => x * scalingFactor));
+  };
+  
+  Vector.prototype.unitize = function () {
+    return this.scale(this.magnitude());
+  };
+  
+  Vector.prototype.dbgstr = function () {
+    return this.components.map(toString).join(", ");
+  };
+  
+  Vector.prototype.add = function (otherVector) {
+    if (this.components.length !== otherVector.components.length) {
+      throw "dimension error: " + this.components.length + " != " + otherVector.components.length;
+    }
+    var res = this.components.map((x,i) => x + otherVector.components[i]);
+    return this.makeVector(res);
+  };
+  
+  Vector.prototype.floor = function () {
+    return this.makeVector(this.components.map(Math.floor));
   };
 
 }).apply(this);
