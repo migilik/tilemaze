@@ -6,17 +6,13 @@
       throw "Vector() expects a components array";
     }
     this.components = componentsArray;
-    this.inPlace = false; // default is copy-on-write
   };
   
   Vector.prototype.makeVector = function (newComponents) {
-    if (this.inPlace) {
-      this.components = newComponents;
-      return this;
-    }
-    else { // copy-on-write
-      return new Vector(newComponents);
-    }
+    // thought about supporting an in-place version and wrapping the
+    // CoW vs in-place logic here, but it is probably too dangerous
+    // to be worth it for the most part, so deleted for now..
+    return new Vector(newComponents);
   };
   
   Vector.prototype.dot = function (otherVector) {

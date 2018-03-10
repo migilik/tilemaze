@@ -20,6 +20,16 @@
   // done a better way.
   this.cameraFocusX = 11;
   this.cameraFocusY = 6;
+  
+  // see updateLoop:
+  this.lastTimestampMS = null; // null implies pause
+  this.updateBacklogTimeMS = 0;
+  this.maxUpdatesWithoutDraw = 10; // if backlog gets this deep, warn..
+  this.gameUpdateRateFPS = 20; // separate from redraw FPS
+  this.gameUpdatePeriodS = (1.0 / this.gameUpdateRateFPS);
+  
+  // precursor to implementing an actual controller
+  this.intents = new Set();
 
   // eg: range(5) => [0, 1, 2, 3, 4]
   function range (x) {
@@ -127,7 +137,7 @@
     .then(waitForView)
     .then(bindControls)
     .then(startGame)
-    .then(draw);
+    .then(() => { window.requestAnimationFrame(updateLoop); });
   };
 
   function loadResources () {
@@ -141,6 +151,9 @@
     // TODO investigate further
     $(window).on("keydown", keyPress);
     //$("#view").on("keydown", keyPress);
+    
+    // TODO real controller.  proof of concept only:
+    $(window).on("keyup", () => { this.intents = new Set(); });
   };
   
   function waitForView () {
@@ -152,11 +165,55 @@
     this.gamestate = gamestate;
     var player = {
       player: true, svg: "smiles", x: null, y: null, r: 0.4, tileCover: [],
-      runspeed: 0.25, keys: new Set(), recentEntrance: null
+      runspeed: 3.5, keys: new Set(), recentEntrance: null
     };
     addEntity(gamestate, player);
     moveToLevel(gamestate, testLevel1, "spawn");
     return gamestate;
+  };
+  
+  function updateLoop (timestampMS) {
+    var pauseQueued = false;
+    if (!pauseQueued) { window.requestAnimationFrame(updateLoop); }
+    
+    var lastTimestamp = this.lastTimestampMS;
+    if (hasValue(lastTimestamp)) {
+      var timeElapsedMS = timestampMS - lastTimestamp;
+      this.updateBacklogTimeMS = this.updateBacklogTimeMS + timeElapsedMS;
+    }
+    this.lastTimestampMS = pauseQueued ? null : timestampMS;
+    
+    var numUpdates = Math.floor(this.updateBacklogTimeMS * this.gameUpdateRateFPS * 0.001);
+    var reduceBacklog = (1000 * numUpdates * this.gameUpdatePeriodS);
+    this.updateBacklogTimeMS = this.updateBacklogTimeMS - reduceBacklog;
+    if (numUpdates > this.maxUpdatesWithoutDraw) {
+      var numDropped = numUpdates - this.maxUpdatesWithoutDraw;
+      numUpdates = this.maxUpdatesWithoutDraw;
+      console.log("Performance warning: exceeded update backlog, dropping update frames -> slow down will result.  Dropped: " + numDropped + " frames.");
+    }
+    
+    for (var i = 0; i < numUpdates; i++) {
+      updateGameState(this.gamestate, this.gameUpdatePeriodS);
+    }
+  
+    // TODO: could throttle to separate redraw FPS here, so that do not
+    // redraw too often - but browsers already throttle to 60 FPS anyway?
+    // ... and 60 FPS is a pipe dream on most rigs right now, even if we
+    // get around to optimization.
+    // Current ideal would be 20 game FPS and 60 redraw FPS?
+    draw(this.gamestate);
+  };
+  
+  function updateGameState (gamestate, updatePeriod) {
+    var heading = new Vector([0,0]);
+    var wantsMove = false;
+    if (this.intents.has("moveLeft")) { heading = heading.add(new Vector([-1, 0])); wantsMove = true; }
+    if (this.intents.has("moveRight")) { heading = heading.add(new Vector([1, 0])); wantsMove = true; }
+    if (this.intents.has("moveUp")) { heading = heading.add(new Vector([0, -1])); wantsMove = true; }
+    if (this.intents.has("moveDown")) { heading = heading.add(new Vector([0, 1])); wantsMove = true; }
+    if (wantsMove) {
+      tryMove(heading, updatePeriod);
+    }
   };
   
   function moveToLevel (gamestate, levelData, entranceName) {
@@ -195,10 +252,10 @@
 
   function keyPress (e) {
     var keyCode = e.keyCode;
-    if (keyCode == 40) { tryMove([0, 1]); }
-    if (keyCode == 38) { tryMove([0, -1]); }
-    if (keyCode == 39) { tryMove([1, 0]); }
-    if (keyCode == 37) { tryMove([-1, 0]); }
+    if (keyCode == 40) { this.intents.add("moveDown"); }
+    if (keyCode == 38) { this.intents.add("moveUp"); }
+    if (keyCode == 39) { this.intents.add("moveRight"); }
+    if (keyCode == 37) { this.intents.add("moveLeft"); }
   };
   
   function tileCorners (tilePosition) {
@@ -253,14 +310,14 @@
     return tiles; 
   };
   
-  function tryMove(heading) {
+  function tryMove(heading, updatePeriod) {
     var gamestate = this.gamestate;
     if (!gamestate) { return; }
     var player = one(gamestate.byType, "player");
     
-    var newXY = (new Vector(heading))
+    var newXY = heading
      .unitize()
-     .scale(player.runspeed)
+     .scale(player.runspeed * updatePeriod)
      .add(new Vector([player.x, player.y]));
     
     var newTileCover = intersectCircleVsGrid(newXY, player.r);
@@ -322,7 +379,6 @@
       
       var levelJson = levelJsons[levelName];
       moveToLevel(gamestate, levelJson, exit);
-      draw(gamestate);
       return;
     }
     
@@ -342,7 +398,6 @@
       }
     }
     hintText(moveHintText);
-    draw(gamestate);
   };
   
   function makeSvgNode (href, x, y) {
