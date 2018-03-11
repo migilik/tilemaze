@@ -474,7 +474,7 @@
         renderWorldX = renderWorldX - e.r;
         renderWorldY = renderWorldY - e.r;
       }
-      var svgNode = makeSvgNode("/viewport.svg#" + e.svg, renderWorldX, renderWorldY);
+      var svgNode = makeSvgNode("viewport.svg#" + e.svg, renderWorldX, renderWorldY);
       scene.append($(svgNode));
     });
   };
