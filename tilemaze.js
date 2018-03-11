@@ -430,6 +430,10 @@
     hintText(moveHintText);
   };
   
+  function svgDoc () {
+    return $("#view")[0].contentDocument;
+  };
+  
   function makeSvgNode (href, x, y) {
     var svgUse = document.createElementNS(svgNS, "use");
     svgUse.setAttribute("href", href);
@@ -471,7 +475,7 @@
         renderWorldX = renderWorldX - e.r;
         renderWorldY = renderWorldY - e.r;
       }
-      var svgNode = makeSvgNode("viewport.svg#" + e.svg, renderWorldX, renderWorldY);
+      var svgNode = makeSvgNode("/viewport.svg#" + e.svg, renderWorldX, renderWorldY);
       scene.append($(svgNode));
     });
   };
