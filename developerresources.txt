@@ -5,3 +5,7 @@ https://www.w3.org/Graphics/SVG/IG/resources/svgprimer.html#SVG_in_HTML
 
 https://developer.mozilla.org/en-US/docs/Web/SVG/Scripting
  Details interactions between js and embedded svg.
+
+https://developer.mozilla.org/en-US/docs/Web/API/SVGSVGElement
+ SVG node specific manipulations including redraw suspension and direct transform
+manipulation (relevant to performance and code cleanliness)

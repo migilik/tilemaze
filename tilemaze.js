@@ -46,7 +46,11 @@ class TileMaze {
     // precursor to implementing an actual controller
     this.intents = new Set();
     
-        // the keys subject to indexing in gamestate.byType (these are property names of entities)
+    // max svg redraw suspension time (in practice draw() should not be
+    // taking this long to complete and release the suspension cleanly).
+    this.maxSvgSuspendTimeMS = 1000;
+    
+    // the keys subject to indexing in gamestate.byType (these are property names of entities)
     this.typeFlagsToIndex = [ "player", "wall", "floor", "exit", "goal", "levelBound", "key", "lock", "svg" ];
     
     // fields allowed in tile data of json level data format - these fields will get
@@ -449,29 +453,39 @@ class TileMaze {
     // need to pass contentDocument as context to JQuery for
     // svg element manipulation to work right when using external svg:
     var view = $("#view");
-    var scene = $("#scene", this.svgDoc());
-    var svgCamera = $("#cameraoffset", this.svgDoc());
-	
-    scene.empty();
-    this.updateCameraPosition(gamestate, svgCamera);
+    let svgDoc = this.svgDoc();
     
-    var renderables = this.all(gamestate.byType, "svg");
-    renderables.forEach(e => {
-      var renderWorldX = e.x;
-      var renderWorldY = e.y;
-      if (hasValue(e.r)) {
-        // single-tile svgs already have equal game x/y and display x/y,
-        // both at top-left corner, but everything else needs to be
-        // offset to the appropriate display position
-        // (ie anchor to top-left corner of svg instead of in-game center)
-        // For now, hacky, but just offset via radius if exists.. later
-        // will need a more general mechanism
-        renderWorldX = renderWorldX - e.r;
-        renderWorldY = renderWorldY - e.r;
-      }
-      var svgNode = this.makeSvgNode("viewport.svg#" + e.svg, renderWorldX, renderWorldY);
-      scene.append($(svgNode));
-    });
+    // wrap svg modifications in a suspend call to improve framerate
+    // by reducing total amount of redrawing
+    var suspendDrawHandle = svgDoc.documentElement.suspendRedraw(this.maxSvgSuspendTimeMS);
+    try {
+      var scene = $("#scene", svgDoc);
+      var svgCamera = $("#cameraoffset", svgDoc);
+    
+      scene.empty();
+      this.updateCameraPosition(gamestate, svgCamera);
+      
+      var renderables = this.all(gamestate.byType, "svg");
+      renderables.forEach(e => {
+        var renderWorldX = e.x;
+        var renderWorldY = e.y;
+        if (hasValue(e.r)) {
+          // single-tile svgs already have equal game x/y and display x/y,
+          // both at top-left corner, but everything else needs to be
+          // offset to the appropriate display position
+          // (ie anchor to top-left corner of svg instead of in-game center)
+          // For now, hacky, but just offset via radius if exists.. later
+          // will need a more general mechanism
+          renderWorldX = renderWorldX - e.r;
+          renderWorldY = renderWorldY - e.r;
+        }
+        var svgNode = this.makeSvgNode("viewport.svg#" + e.svg, renderWorldX, renderWorldY);
+        scene.append($(svgNode));
+      });
+    }
+    finally {
+      svgDoc.documentElement.unsuspendRedraw(suspendDrawHandle);
+    }
   }
   
   
