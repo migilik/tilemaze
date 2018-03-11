@@ -22,11 +22,13 @@
   this.cameraFocusY = 6;
   
   // see updateLoop:
-  this.lastTimestampMS = null; // null implies pause
+  this.lastTimestampMS = null; // if null, then paused should be true
   this.updateBacklogTimeMS = 0;
   this.maxUpdatesWithoutDraw = 10; // if backlog gets this deep, warn..
   this.gameUpdateRateFPS = 20; // separate from redraw FPS
   this.gameUpdatePeriodS = (1.0 / this.gameUpdateRateFPS);
+  this.pauseQueued = false;
+  this.paused = true; // lock requestAnimationFrame
   
   // precursor to implementing an actual controller
   this.intents = new Set();
@@ -137,7 +139,7 @@
     .then(waitForView)
     .then(bindControls)
     .then(startGame)
-    .then(() => { window.requestAnimationFrame(updateLoop); });
+    .then(resume);
   };
 
   function loadResources () {
@@ -172,9 +174,36 @@
     return gamestate;
   };
   
+  // top-level pause (user initiated, from console for debug, etc)
+  // delayed effect: actual pause occurs on next updateLoop
+  function pause () {
+    this.pauseQueued = true;
+  };
+  
+  // top-level resume (user initiated, from console for debug, etc)
+  function resume () {
+    this.pauseQueued = false;
+    if (this.paused) {
+      hintText("Unpausing.. ");
+      this.paused = false;
+      window.requestAnimationFrame(updateLoop);
+    }
+  };
+  
+  function togglePause () {
+    if (this.paused) { resume(); }
+    else { pause(); }
+  };  
+  
   function updateLoop (timestampMS) {
-    var pauseQueued = false;
-    if (!pauseQueued) { window.requestAnimationFrame(updateLoop); }
+    var pauseQueued = this.pauseQueued;
+    if (!pauseQueued) {
+      window.requestAnimationFrame(updateLoop);
+    }
+    else {
+      this.paused = true;
+      hintText("--PAUSED--");
+    }
     
     var lastTimestamp = this.lastTimestampMS;
     if (hasValue(lastTimestamp)) {
@@ -256,6 +285,7 @@
     if (keyCode == 38) { this.intents.add("moveUp"); }
     if (keyCode == 39) { this.intents.add("moveRight"); }
     if (keyCode == 37) { this.intents.add("moveLeft"); }
+    if (keyCode === 80 || e.key === "p") { togglePause(); }
   };
   
   function tileCorners (tilePosition) {
@@ -552,5 +582,8 @@
   // exports:
   this.ready = ready;
   this.onWindowLoaded = onWindowLoaded;
+  this.pause = pause;
+  this.resume = resume;
+  this.togglePause = togglePause;
 
 }).apply(this);

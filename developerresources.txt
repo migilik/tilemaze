@@ -1,0 +1,7 @@
+Since current implementation utilizes svg for graphics rendering..
+
+https://www.w3.org/Graphics/SVG/IG/resources/svgprimer.html#SVG_in_HTML
+ Surveys multiple methods of embedding svg (including script accessibility)
+
+https://developer.mozilla.org/en-US/docs/Web/SVG/Scripting
+ Details interactions between js and embedded svg.
