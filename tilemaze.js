@@ -435,7 +435,7 @@
   };
   
   function makeSvgNode (href, x, y) {
-    var svgUse = document.createElementNS(svgNS, "use");
+    var svgUse = svgDoc().createElementNS(svgNS, "use");
     svgUse.setAttribute("href", href);
     var xformStr = "translate(X,Y)".replace("X", x).replace("Y", y);
     svgUse.setAttribute("transform", xformStr);
@@ -454,9 +454,8 @@
     // need to pass contentDocument as context to JQuery for
     // svg element manipulation to work right when using external svg:
     var view = $("#view");
-    var svgContentDocument = view[0].contentDocument;
-    var scene = $("#scene", svgContentDocument);
-    var svgCamera = $("#cameraoffset", svgContentDocument);
+    var scene = $("#scene", svgDoc());
+    var svgCamera = $("#cameraoffset", svgDoc());
 	
     scene.empty();
     updateCameraPosition(gamestate, svgCamera);
