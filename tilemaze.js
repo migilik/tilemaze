@@ -1,6 +1,6 @@
-import { range, cartesianProduct, hasValue, intersectEntitySets } from "/misc.js";
-import { Vector } from "/vector.js";
-import { testLevel1, testLevel2 } from "/testlevel.js";
+import { range, cartesianProduct, hasValue, intersectEntitySets } from "./misc.js";
+import { Vector } from "./vector.js";
+import { testLevel1, testLevel2 } from "./testlevel.js";
 
 // TODO: architecture + break-up
 
