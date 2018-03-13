@@ -152,11 +152,11 @@ class TileMaze {
     // seems we need both of these for keyboard handling to work through
     // the view svg, but the behavior appears a little odd..
     // TODO investigate further
-    $(window).on("keydown", e => this.keyPress(e));
+    $(window).on("keydown", e => this.keyDown(e));
     //$("#view").on("keydown", keyPress);
     
-    // TODO real controller.  proof of concept only:
-    $(window).on("keyup", e => { this.intents = new Set(); });
+    $(window).on("keyup", e => this.keyUp(e));
+    $(window).on("focusout", e => this.focusOut(e));
   }
   
   waitForView () {
@@ -278,13 +278,30 @@ class TileMaze {
     this.moveEntity(gamestate, player, spawnPoint.add(new Vector([0.5, 0.5])), [ spawnPoint ]);
   }
 
-  keyPress (e) {
-    var keyCode = e.keyCode;
-    if (keyCode == 40) { this.intents.add("moveDown"); }
-    if (keyCode == 38) { this.intents.add("moveUp"); }
-    if (keyCode == 39) { this.intents.add("moveRight"); }
-    if (keyCode == 37) { this.intents.add("moveLeft"); }
-    if (keyCode === 80 || e.key === "p") { this.togglePause(); }
+  keyDown (e) {
+    const code = e.key;
+    if (code === "ArrowDown") { this.intents.add("moveDown"); }
+    if (code === "ArrowUp") { this.intents.add("moveUp"); }
+    if (code === "ArrowRight") { this.intents.add("moveRight"); }
+    if (code === "ArrowLeft") { this.intents.add("moveLeft"); }
+    if (code === "p") { this.togglePause(); }
+  }
+  
+  keyUp (e) {
+    const code = e.key;
+    if (code === "ArrowDown") { this.intents.delete("moveDown"); }
+    if (code === "ArrowUp") { this.intents.delete("moveUp"); }
+    if (code === "ArrowRight") { this.intents.delete("moveRight"); }
+    if (code === "ArrowLeft") { this.intents.delete("moveLeft"); }
+  }
+  
+  focusOut (e) {
+    // if lose focus, treat as if keyup for all keys, since will miss
+    // actual keyup event
+    this.intents.delete("moveDown");
+    this.intents.delete("moveUp");
+    this.intents.delete("moveRight");
+    this.intents.delete("moveLeft");
   }
   
   tileCorners (tilePosition) {
