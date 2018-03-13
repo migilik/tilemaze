@@ -1,21 +1,21 @@
 // use format that can easily be imported from a JSON file
 // so that later (TODO) can move 
-let testLevel1 = {
+const testLevel1 = {
   name: "testLevel1",
   tileDataMap: {
-    ".": { floor: true, svg: "floor",  },
+    ".": { floor: true, svgbg2: "floor",  },
     " ": { wall: true },
-    "1": { wall: true, svg: "bricks" },
-    "2": { entrance: "spawn", floor: true, svg: "floor" },
-    "3": { goal: true, floor: true, svg: "glowycircle" },
-    "4": { floor: true, entrance: "stairs1", exit: "testLevel2.stairs1", svg: "stairs" },
-    "5": { floor: true, entrance: "stairs1", exit: "testLevel1.stairs1", svg: "stairs" },
-    "6": { floor: true, entrance: "stairs2", exit: "testLevel2.stairs2", svg: "stairs" },
-    "7": { floor: true, entrance: "stairs2", exit: "testLevel1.stairs2", svg: "stairs" },
-    "8": { floor: true, spawner: "key", svg: "floor" },
-    "9": { floor: true, spawner: "lock", svg: "floor" },
-    "a": { floor: true, entrance: "stairs3", exit: "testLevel2.stairs3", svg: "stairs" },
-    "b": { floor: true, entrance: "stairs3", exit: "testLevel1.stairs3", svg: "stairs" },
+    "1": { wall: true, svgbg1: "bricks" },
+    "2": { entrance: "spawn", floor: true, svgbg2: "floor" },
+    "3": { goal: true, floor: true, svgbg1: "glowycircle", svgbg2: "floor" },
+    "4": { floor: true, entrance: "stairs1", exit: "testLevel2.stairs1", svgbg1: "stairs", svgbg2: "floor" },
+    "5": { floor: true, entrance: "stairs1", exit: "testLevel1.stairs1", svgbg1: "stairs", svgbg2: "floor" },
+    "6": { floor: true, entrance: "stairs2", exit: "testLevel2.stairs2", svgbg1: "stairs", svgbg2: "floor" },
+    "7": { floor: true, entrance: "stairs2", exit: "testLevel1.stairs2", svgbg1: "stairs", svgbg2: "floor" },
+    "8": { floor: true, spawner: "key", svgbg2: "floor" },
+    "9": { floor: true, spawner: "lock", svgbg2: "floor" },
+    "a": { floor: true, entrance: "stairs3", exit: "testLevel2.stairs3", svgbg1: "stairs", svgbg2: "floor" },
+    "b": { floor: true, entrance: "stairs3", exit: "testLevel1.stairs3", svgbg1: "stairs", svgbg2: "floor" },
   },
   tileData: [
     " 111        111 ",
@@ -30,7 +30,7 @@ let testLevel1 = {
   ].join("\n")
 };
 
-let testLevel2 = {
+const testLevel2 = {
   name: "testLevel2",
   tileDataMap: testLevel1.tileDataMap,
   tileData: [

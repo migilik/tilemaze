@@ -6,6 +6,12 @@
    <g id="camerarotate" transform="rotate(0)">
     <g id="cameraoffset" transform="translate(0,0)">
      <g id="scene">
+      <g id="bg3"></g>
+      <g id="bg2"></g>
+      <g id="bg1"></g>
+      <g id="fg1"></g>
+      <g id="fg2"></g>
+      <g id="fg3"></g>
      </g>
     </g>
    </g>

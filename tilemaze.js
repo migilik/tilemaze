@@ -4,6 +4,8 @@ import { testLevel1, testLevel2 } from "./testlevel.js";
 
 // TODO: architecture + break-up
 
+const drawLayers = ["bg3", "bg2", "bg1", "fg1", "fg2", "fg3"];
+
 class GameState {
   constructor () {
     this.counter = 0;
@@ -51,11 +53,11 @@ class TileMaze {
     this.maxSvgSuspendTimeMS = 1000;
     
     // the keys subject to indexing in gamestate.byType (these are property names of entities)
-    this.typeFlagsToIndex = [ "player", "wall", "floor", "exit", "goal", "levelBound", "key", "lock", "svg" ];
+    this.typeFlagsToIndex = [ "player", "wall", "floor", "exit", "goal", "levelBound", "key", "lock", "svgfg3", "svgfg2", "svgfg1", "svgbg1", "svgbg2", "svgbg3" ];
     
     // fields allowed in tile data of json level data format - these fields will get
     // copied into loaded level data.  could eventually put validation rules here too..
-    this.validTileDataFields = [ "floor", "wall", "goal", "entrance", "exit", "svg", "spawner" ];
+    this.validTileDataFields = [ "floor", "wall", "goal", "entrance", "exit", "spawner", "svgfg3", "svgfg2", "svgfg1", "svgbg1", "svgbg2", "svgbg3" ];
     
     this.levelJsons = {
       "testLevel1" : testLevel1,
@@ -166,7 +168,7 @@ class TileMaze {
   startGame () {
     this.gamestate = new GameState();
     var player = {
-      player: true, svg: "smiles", x: null, y: null, r: 0.4, tileCover: [],
+      player: true, svgfg1: "smiles", x: null, y: null, r: 0.4, tileCover: [],
       runspeed: 3.5, keys: new Set(), recentEntrance: null
     };
     this.addEntity(this.gamestate, player);
@@ -229,7 +231,7 @@ class TileMaze {
     // ... and 60 FPS is a pipe dream on most rigs right now, even if we
     // get around to optimization.
     // Current ideal would be 20 game FPS and 60 redraw FPS?
-    this.draw(this.gamestate);
+    this.draw(this.gamestate, new Set(["fg1", "fg2", "fg3"]));
   }
   
   updateGameState (gamestate, updatePeriod) {
@@ -262,7 +264,7 @@ class TileMaze {
 	      // key and lock work
 	      if (spawnerType === "key" && player.keys.has("testkey")) { doSpawn = false; }
 	      var spawnedEntity = {
-          svg: spawnerType, levelBound: true,
+          svgfg1: spawnerType, levelBound: true,
           x: tile.x + 0.5, y: tile.y + 0.5, r: 0.5,
           tileCover: [ new Vector([tile.x, tile.y]) ]
         };
@@ -276,6 +278,7 @@ class TileMaze {
     var spawnPoint = new Vector([spawnEntity.x, spawnEntity.y]);
     player.recentEntrance = entranceName;
     this.moveEntity(gamestate, player, spawnPoint.add(new Vector([0.5, 0.5])), [ spawnPoint ]);
+    this.draw(gamestate, new Set(["bg1", "bg2", "bg3"]));
   }
 
   keyDown (e) {
@@ -466,38 +469,42 @@ class TileMaze {
     svgCamera.attr("transform", newTransformStr);
   }
 
-  draw (gamestate) {
+  draw (gamestate, layers) {
     // need to pass contentDocument as context to JQuery for
     // svg element manipulation to work right when using external svg:
-    var view = $("#view");
+    let view = $("#view");
     let svgDoc = this.svgDoc();
     
     // wrap svg modifications in a suspend call to improve framerate
     // by reducing total amount of redrawing
-    var suspendDrawHandle = svgDoc.documentElement.suspendRedraw(this.maxSvgSuspendTimeMS);
+    let suspendDrawHandle = svgDoc.documentElement.suspendRedraw(this.maxSvgSuspendTimeMS);
     try {
-      var scene = $("#scene", svgDoc);
-      var svgCamera = $("#cameraoffset", svgDoc);
-    
-      scene.empty();
+      let svgCamera = $("#cameraoffset", svgDoc);
       this.updateCameraPosition(gamestate, svgCamera);
-      
-      var renderables = this.all(gamestate.byType, "svg");
-      renderables.forEach(e => {
-        var renderWorldX = e.x;
-        var renderWorldY = e.y;
-        if (hasValue(e.r)) {
-          // single-tile svgs already have equal game x/y and display x/y,
-          // both at top-left corner, but everything else needs to be
-          // offset to the appropriate display position
-          // (ie anchor to top-left corner of svg instead of in-game center)
-          // For now, hacky, but just offset via radius if exists.. later
-          // will need a more general mechanism
-          renderWorldX = renderWorldX - e.r;
-          renderWorldY = renderWorldY - e.r;
-        }
-        var svgNode = this.makeSvgNode("viewport.svg#" + e.svg, renderWorldX, renderWorldY);
-        scene.append($(svgNode));
+    
+      drawLayers.forEach(layerName => {
+        if (!layers.has(layerName)) { return; }
+        let svgKey = "svg" + layerName;
+        let layer = $("#" + layerName, svgDoc);
+        layer.empty();
+        let renderables = this.all(gamestate.byType, svgKey);
+        
+        renderables.forEach(e => {
+          let renderWorldX = e.x;
+          let renderWorldY = e.y;
+          if (hasValue(e.r)) {
+            // single-tile svgs already have equal game x/y and display x/y,
+            // both at top-left corner, but everything else needs to be
+            // offset to the appropriate display position
+            // (ie anchor to top-left corner of svg instead of in-game center)
+            // For now, hacky, but just offset via radius if exists.. later
+            // will need a more general mechanism
+            renderWorldX = renderWorldX - e.r;
+            renderWorldY = renderWorldY - e.r;
+          }
+          let svgNode = this.makeSvgNode("viewport.svg#" + e[svgKey], renderWorldX, renderWorldY);
+          layer.append($(svgNode));
+        });
       });
     }
     finally {
