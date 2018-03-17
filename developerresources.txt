@@ -9,3 +9,27 @@ https://developer.mozilla.org/en-US/docs/Web/SVG/Scripting
 https://developer.mozilla.org/en-US/docs/Web/API/SVGSVGElement
  SVG node specific manipulations including redraw suspension and direct transform
 manipulation (relevant to performance and code cleanliness)
+
+
+SVG PSEUDO-DOM GOTCHAS:
+Note that using an embedded SVG results in a variety of gotchas relating
+to the fact that there is a pseudo-DOM co-existing with the standard DOM.
+
+For one thing, focusing the SVG eg by clicking the viewport will actually
+cause the primary DOM to lose focus, which can interfere with eg key
+handlers.   A simple fix is to use the pointer-events:none CSS style
+to prevent the SVG from generating focus changes entirely, but this
+prevents using interactive SVG for eg tooltips or menus.  If the later
+are desired, a more complex solution is required.
+
+Another gotcha is that adding elements to the SVG must be done relative
+to the pseudo SVG and not the standard DOM document root.
+Failing to do so can cause implementation details of the SVG-embedding
+to bubble up in nasty ways.. eg spurious additional requests for the SVG
+at unpredictable timings, graphics and animation
+glitching, etc., and varying by platform, version, run context.
+Fun stuff - highly recommend avoiding.
+
+In general, it is safest to treat the two as separate DOMs, by giving
+DOM manipulation calls the SVG root as context, and by using the SVG
+namespace as applicable (eg CreateElementNS instead of CreateElement).
