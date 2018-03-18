@@ -168,7 +168,7 @@ class TileMaze {
   startGame () {
     this.gamestate = new GameState();
     var player = {
-      player: true, svgfg1: "smiles", x: null, y: null, r: 0.4, tileCover: [],
+      player: true, svgfg1: "smiles", x: null, y: null, r: 0.25, tileCover: [],
       runspeed: 3.5, keys: new Set(), recentEntrance: null
     };
     this.addEntity(this.gamestate, player);
@@ -265,7 +265,7 @@ class TileMaze {
 	      if (spawnerType === "key" && player.keys.has("testkey")) { doSpawn = false; }
 	      var spawnedEntity = {
           svgfg1: spawnerType, levelBound: true,
-          x: tile.x + 0.5, y: tile.y + 0.5, r: 0.5,
+          x: tile.x, y: tile.y, r: 0.5,
           tileCover: [ new Vector([tile.x, tile.y]) ]
         };
 		    if (doSpawn) {
@@ -277,7 +277,7 @@ class TileMaze {
     var spawnEntity = level.entrances[entranceName];
     var spawnPoint = new Vector([spawnEntity.x, spawnEntity.y]);
     player.recentEntrance = entranceName;
-    this.moveEntity(gamestate, player, spawnPoint.add(new Vector([0.5, 0.5])), [ spawnPoint ]);
+    this.moveEntity(gamestate, player, spawnPoint, [ spawnPoint ]);
     this.draw(gamestate, new Set(["bg1", "bg2", "bg3"]));
   }
 
@@ -308,11 +308,12 @@ class TileMaze {
   }
   
   tileCorners (tilePosition) {
+    const k = 0.5;
     return [
-      tilePosition,
-      tilePosition.add(new Vector([0, 1])),
-      tilePosition.add(new Vector([1, 0])),
-      tilePosition.add(new Vector([1, 1]))
+      tilePosition.add(new Vector([-k, -k])),
+      tilePosition.add(new Vector([k, -k])),
+      tilePosition.add(new Vector([-k, k])),
+      tilePosition.add(new Vector([k, k]))
     ];
   }
   
@@ -322,12 +323,13 @@ class TileMaze {
     var dims = range(2);
     
     var axisAlignedCheck = dims.map(dim => {
-      if (tile.components[dim] !== center.floor().components[dim]) {
+      const halfTile = 0.5;
+      if (tile.components[dim] !== center.add(new Vector([halfTile, halfTile])).floor().components[dim]) {
         return false;
       }
-      var otherDim = (dim + 1) % 2;
-      var tileCenter = tile.components[otherDim] + 0.5;
-      return (Math.abs(center.components[otherDim] - tileCenter) <= 0.5);
+      let otherDim = (dim + 1) % 2;
+      let tileCenter = tile.components[otherDim];
+      return (Math.abs(center.components[otherDim] - tileCenter) <= radius + halfTile);
     });
     
     if (axisAlignedCheck.reduce((a, b) => a || b, false) === true) {
@@ -492,16 +494,9 @@ class TileMaze {
         renderables.forEach(e => {
           let renderWorldX = e.x;
           let renderWorldY = e.y;
-          if (hasValue(e.r)) {
-            // single-tile svgs already have equal game x/y and display x/y,
-            // both at top-left corner, but everything else needs to be
-            // offset to the appropriate display position
-            // (ie anchor to top-left corner of svg instead of in-game center)
-            // For now, hacky, but just offset via radius if exists.. later
-            // will need a more general mechanism
-            renderWorldX = renderWorldX - e.r;
-            renderWorldY = renderWorldY - e.r;
-          }
+          // for now, display offset (in otherwords, transforming from
+          // the topleft of the svg to its center anchor) is not done
+          // here but in the individual svgs, but this may change..
           let svgNode = this.makeSvgNode("viewport.svg#" + e[svgKey], renderWorldX, renderWorldY);
           layer.append($(svgNode));
         });
