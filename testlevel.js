@@ -16,6 +16,7 @@ const testLevel1 = {
     "9": { floor: true, spawner: "lock", svgbg2: "floor" },
     "a": { floor: true, entrance: "stairs3", exit: "testLevel2.stairs3", svgbg1: "stairs", svgbg2: "floor" },
     "b": { floor: true, entrance: "stairs3", exit: "testLevel1.stairs3", svgbg1: "stairs", svgbg2: "floor" },
+    "S": { floor: true, spawner: "slime", svgbg2: "floor" },
   },
   tileData: [
     " 111        111 ",
@@ -23,7 +24,7 @@ const testLevel1 = {
     "12.41      16.31",
     "11.11      11.11",
     " 11111111111111 ",
-    " 1...a........1 ",
+    " 1.S.a........1 ",
     " 1........8...1 ",
     " 1............1 ",
     " 11111111111111 "
@@ -36,7 +37,7 @@ const testLevel2 = {
   tileData: [
     " ",
     "  111111111111",
-    "  15....9...71",
+    "  15..S.9...71",
     "  111.11111111",
     "    1.1",
     "    1b1",

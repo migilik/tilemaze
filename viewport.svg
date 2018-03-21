@@ -2,16 +2,18 @@
 <svg xmlns="http://www.w3.org/2000/svg">
  <rect width="100%" height="100%" fill="black" />
  <svg id="camera">
-  <g id="camerazoom" transform="scale(30)">
-   <g id="camerarotate" transform="rotate(0)">
-    <g id="cameraoffset" transform="translate(0,0)">
-     <g id="scene">
-      <g id="bg3"></g>
-      <g id="bg2"></g>
-      <g id="bg1"></g>
-      <g id="fg1"></g>
-      <g id="fg2"></g>
-      <g id="fg3"></g>
+  <g id="camscreenoffset" transform="translate(360,240)">
+   <g id="camerazoom" transform="scale(32)">
+    <g id="camerarotate" transform="rotate(0)">
+     <g id="cameraoffset" transform="translate(0,0)">
+      <g id="scene">
+       <g id="bg3"></g>
+       <g id="bg2"></g>
+       <g id="bg1"></g>
+       <g id="fg1"></g>
+       <g id="fg2"></g>
+       <g id="fg3"></g>
+      </g>
      </g>
     </g>
    </g>
@@ -20,8 +22,8 @@
  
  <defs id="sprites">
  
-  <svg id="smiles" x="-0.5" y="-0.5" width="1" height="1">
-   <g transform="scale(0.8)">
+  <svg id="smiles" x="-0.4" y="-0.4" width="1" height="1">
+   <g id="playersize" transform="scale(0.8)">
    <g transform="scale(0.01)">
    <circle cx="50" cy="50" r="42" style="fill:rgb(255,255,100);stroke-width=8;stroke:black" />
    <ellipse cx="35" cy="35" rx="10" ry="15" style="fill:white" />
@@ -139,6 +141,69 @@
     <path
        d="m 378.00055,343.50531 a 57.142857,57.142857 0 0 0 -57.14257,57.14257 57.142857,57.142857 0 0 0 35.76953,52.95313 l -38.70508,135.72266 120.15234,0 -37.47265,-136.26563 a 57.142857,57.142857 0 0 0 34.54101,-52.41016 57.142857,57.142857 0 0 0 -57.14258,-57.14257 z"
        style="fill:#ffdd00;fill-opacity:1;stroke:#070000;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+   </g>
+  </svg>
+  
+  <svg id="arrow" x="-0.5" y="-0.5" width="1" height="1">
+   <g transform="scale(0.015625)">
+    <rect y="11.82485" x="30.620626"
+       height="45.596153" width="3.4268761"
+       style="fill:#c9530b;fill-opacity:1;stroke:#070000;stroke-width:1.0443753;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+    <path
+       transform="matrix(0.3669059,0,0,0.58969524,19.156187,-1.03916)"
+       d="m 46.786209,24.736404 -22.090347,0 11.045174,-19.1308017 z"
+       style="fill:#9da8ae;fill-opacity:1;stroke:#070000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+    <path
+       d="m 26.484362,47.286565 3.214121,-6.942503 0,15.04209 -4.371205,3.471251 z"
+       style="fill:#fddede;fill-opacity:1;stroke:#070000;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+    <g transform="matrix(-0.93403742,0,0,1.0017758,62.66047,-0.08808044)">
+       <path
+        d="m 26.484362,47.286565 3.214121,-6.942503 0,15.04209 -4.371205,3.471251 z"
+        style="fill:#fddede;fill-opacity:1;stroke:#070000;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+    </g>
+   </g>
+  </svg>
+  
+  <svg id="slime" x="-0.4" y="-0.4" width="1" height="1">
+   <g id="slimesize" transform="scale(0.8)">
+   <g transform="scale(0.015625)">
+    <ellipse
+       style="fill:#31d400;fill-opacity:1;stroke:#070000;stroke-width:1.14024639;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       cx="32.912609"
+       cy="31.601654"
+       rx="25.899981"
+       ry="25.385721" />
+    <ellipse
+       style="fill:#ffffff;fill-opacity:1;stroke:#070000;stroke-width:1.00098622;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       cx="45.061985"
+       cy="23.373501"
+       rx="5.334949"
+       ry="7.649116" />
+    <ellipse
+       style="fill:#ffffff;fill-opacity:1;stroke:#070000;stroke-width:1.09800696;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       cx="34.84108"
+       cy="24.466305"
+       rx="5.8649802"
+       ry="8.371995" />
+    <ellipse
+       style="fill:#ff1919;fill-opacity:1;stroke:#070000;stroke-width:1.03956318;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       cx="48.404671"
+       cy="26.587622"
+       rx="3.2586229"
+       ry="3.8371642" />
+    <ellipse
+       style="fill:#ff1919;fill-opacity:1;stroke:#070000;stroke-width:1.35216284;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       cx="37.026676"
+       cy="27.744707"
+       rx="4.259407"
+       ry="4.9665132" />
+    <path
+       style="fill:#850000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 15.942044,48.057956 8.485281,-12.470792 9.77093,5.913984 8.742411,-2.314168 3.985511,1.671343 5.142595,-4.885464 -1.671343,12.599356 -4.114075,-5.142595 -1.79991,2.956993 -3.72838,1.157084 -8.613847,-0.25713 -3.599816,-4.242641 z"/>
+    <path
+       style="fill:#185500;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 59.911229,10.38845 46.797613,9.4884954 39.59798,12.188357 30.212744,8.974236 9.128106,10.388449 l 20.184684,1.157084 10.799449,5.399725 6.685374,-4.371206 z"/>
+   </g>
    </g>
   </svg>
   

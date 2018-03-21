@@ -21,4 +21,11 @@ function intersectEntitySets (A, B) { // TODO: bit of a misnomer
   .map(entityPair => entityPair[0]);
 };
 
-export { range, cartesianProduct, hasValue, intersectEntitySets };
+// linear interpolation of a scalar from value x0 to value x1 based on
+// a parameter t (usually on [0, 1]
+function lerp (x0, x1, t) {
+  const interval = x1 - x0;
+  return x0 + interval * t;
+}
+
+export { range, cartesianProduct, hasValue, intersectEntitySets, lerp };

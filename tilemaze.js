@@ -1,5 +1,6 @@
-import { range, cartesianProduct, hasValue, intersectEntitySets } from "./misc.js";
+import { range, cartesianProduct, hasValue, intersectEntitySets, lerp } from "./misc.js";
 import { Vector } from "./vector.js";
+import { Timer } from "./timer.js";
 import { testLevel1, testLevel2 } from "./testlevel.js";
 
 // TODO: architecture + break-up
@@ -30,12 +31,6 @@ class TileMaze {
     this.gamestate = null;
     this.svgNS = "http://www.w3.org/2000/svg";
     
-    // arbitrary camera transform setting the "center" of the screen
-    // relative to top left, in number of tiles.. this needs to be
-    // done a better way.
-    this.cameraFocusX = 11;
-    this.cameraFocusY = 6;
-    
     // see updateLoop:
     this.lastTimestampMS = null; // if null, then paused should be true
     this.updateBacklogTimeMS = 0;
@@ -53,7 +48,7 @@ class TileMaze {
     this.maxSvgSuspendTimeMS = 1000;
     
     // the keys subject to indexing in gamestate.byType (these are property names of entities)
-    this.typeFlagsToIndex = [ "player", "wall", "floor", "exit", "goal", "levelBound", "key", "lock", "svgfg3", "svgfg2", "svgfg1", "svgbg1", "svgbg2", "svgbg3" ];
+    this.typeFlagsToIndex = [ "player", "wall", "floor", "exit", "goal", "levelBound", "controller", "timer", "key", "lock", "svgfg3", "svgfg2", "svgfg1", "svgbg1", "svgbg2", "svgbg3" ];
     
     // fields allowed in tile data of json level data format - these fields will get
     // copied into loaded level data.  could eventually put validation rules here too..
@@ -108,19 +103,23 @@ class TileMaze {
   // then re-add it - this is not ideal, and this design could use 
   // improvement (TODO - see also moveEntity function))
   addEntity (gamestate, entity) {
-    entity.tileCover.map(a => a.components).forEach((xy) => {
-      if (hasValue(xy[0])) { this.addToIndex(gamestate.byX, xy[0], entity); }
-      if (hasValue(xy[1])) { this.addToIndex(gamestate.byY, xy[1], entity); }
-    });
+    if (hasValue(entity.tileCover)) {
+      entity.tileCover.map(a => a.components).forEach((xy) => {
+        this.addToIndex(gamestate.byX, xy[0], entity);
+        this.addToIndex(gamestate.byY, xy[1], entity);
+      });
+    }
     var typeFlags = this.typeFlagsToIndex.filter(typeFlag => typeFlag in entity);
     typeFlags.forEach(typeKey => this.addToIndex(gamestate.byType, typeKey, entity));
   }
 
   removeEntity (gamestate, entity) {
-    entity.tileCover.map(a => a.components).forEach((xy) => {
-      this.removeFromIndex(gamestate.byX, xy[0], entity);
-      this.removeFromIndex(gamestate.byY, xy[1], entity);
-    });
+    if (hasValue(entity.tileCover)) {
+      entity.tileCover.map(a => a.components).forEach((xy) => {
+        this.removeFromIndex(gamestate.byX, xy[0], entity);
+        this.removeFromIndex(gamestate.byY, xy[1], entity);
+      });
+    }
     var typeFlags = this.typeFlagsToIndex.filter(typeFlag => typeFlag in entity);
     typeFlags.forEach(typeKey => this.removeFromIndex(gamestate.byType, typeKey, entity));
   }
@@ -167,9 +166,10 @@ class TileMaze {
 
   startGame () {
     this.gamestate = new GameState();
-    var player = {
-      player: true, svgfg1: "smiles", x: null, y: null, r: 0.25, tileCover: [],
-      runspeed: 3.5, keys: new Set(), recentEntrance: null
+    let player = {
+      player: true, svgfg1: "smiles", x: null, y: null, r: 0.4, tileCover: [],
+      runspeed: 3.5, keys: new Set(), recentEntrance: null,
+      controller: () => this.playerController(this.gamestate, player)
     };
     this.addEntity(this.gamestate, player);
     this.moveToLevel(this.gamestate, testLevel1, "spawn");
@@ -185,7 +185,7 @@ class TileMaze {
   resume () {
     this.pauseQueued = false;
     if (this.paused) {
-      this.hintText("Unpausing.. ");
+      this.hintText("Unpaused. [P] to pause.. ");
       this.paused = false;
       window.requestAnimationFrame(t => this.updateLoop(t));
     }
@@ -203,7 +203,7 @@ class TileMaze {
     }
     else {
       this.paused = true;
-      this.hintText("--PAUSED--");
+      this.hintText("--PAUSED-- [P] to unpause.");
     }
     
     var lastTimestamp = this.lastTimestampMS;
@@ -235,49 +235,102 @@ class TileMaze {
   }
   
   updateGameState (gamestate, updatePeriod) {
-    var heading = new Vector([0,0]);
-    var wantsMove = false;
+    this.all(gamestate.byType, "timer")
+     .forEach(e => {
+       e.timer.advance(updatePeriod);
+    });
+    
+    this.all(gamestate.byType, "controller")
+     .forEach(e => {
+      e.intents = new Map();
+      e.controller();
+      if (e.intents.has("move")) {
+        this.tryMove(e, e.intents.get("move"), updatePeriod);
+      }
+    });
+    
+    // TODO: update pipeline: collect all controlled entities' intents,
+    // then generate pending collisions and interaction events
+    // then resolve.  having all logic in tryMove is not going to work
+    // for much longer..
+  }
+  
+  playerController (gamestate, entity) {
+    let heading = new Vector([0,0]);
+    let wantsMove = false;
     if (this.intents.has("moveLeft")) { heading = heading.add(new Vector([-1, 0])); wantsMove = true; }
     if (this.intents.has("moveRight")) { heading = heading.add(new Vector([1, 0])); wantsMove = true; }
     if (this.intents.has("moveUp")) { heading = heading.add(new Vector([0, -1])); wantsMove = true; }
     if (this.intents.has("moveDown")) { heading = heading.add(new Vector([0, 1])); wantsMove = true; }
-    if (wantsMove) {
-      this.tryMove(heading, updatePeriod);
+    if (wantsMove) { entity.intents.set("move", heading); }
+  }
+  
+  aiController (gamestate, entity) {
+    // for now just one ai that just randomly bumps around
+    const avgTime = 2.0;
+    const timer = entity.aibrownianmotiontimer;
+    if (timer.complete()) {
+      timer.reset(Math.random() * avgTime * 2);
+      const v = range(2).map(() => lerp(-1, 1, Math.random()));
+      entity.aibrownianheading = (new Vector(v)).unitize();
     }
+    entity.intents.set("move", entity.aibrownianheading);
+  }
+  
+  activateSpawner (gamestate, tile) {
+    // TODO: should this even be specifically spawners, or should
+    // there just be a general "onLevelLoaded" trigger?
+    
+    let player = this.one(gamestate.byType, "player");
+    const spawnerType = tile.spawner;
+    
+    // TODO: this is too simplistic. really need a event/trigger
+    // system for level scripting.. just a bandaid to test whether
+    // key and lock work:
+    if (spawnerType === "key" && player.keys.has("testkey")) { return; }
+    
+    // common
+    let spawnedEntity = {
+      svgfg1: spawnerType, levelBound: true,
+      x: tile.x, y: tile.y, r: 0.5,
+      tileCover: [ new Vector([tile.x, tile.y]) ]
+    };
+    
+    spawnedEntity[spawnerType] = true; // eg this is a key/lock/slime
+    
+    // specific handlers - this should probably be refactored to
+    // hook into an entity database in a general way
+    if (spawnerType === "slime") {
+      spawnedEntity.runspeed = 1.8;
+      spawnedEntity.controller = () => this.aiController(gamestate, spawnedEntity);
+      let moveTimer = new Timer();
+      this.addEntity(gamestate, { timer : moveTimer, levelBound: true });
+      spawnedEntity.aibrownianmotiontimer = moveTimer;
+    }
+    
+    this.addEntity(gamestate, spawnedEntity);
   }
   
   moveToLevel (gamestate, levelData, entranceName) {
-	  var player = this.one(gamestate.byType, "player");
+	  let player = this.one(gamestate.byType, "player");
 	
 	  this.all(gamestate.byType, "levelBound")
      .forEach(e => this.removeEntity(gamestate, e));
 	
-	  var level = this.loadLevel(levelData);
+	  let level = this.loadLevel(levelData);
 	  gamestate.level = level;
-	  level.tiles.forEach((tile, i) => {
-	    this.addEntity(gamestate, tile);
-	    if ("spawner" in tile) {
-		    var doSpawn = true;
-        var spawnerType = tile.spawner;
-        // TODO: this is too simplistic. really need a event/trigger
-        // system for level scripting.. just a bandaid to test whether
-	      // key and lock work
-	      if (spawnerType === "key" && player.keys.has("testkey")) { doSpawn = false; }
-	      var spawnedEntity = {
-          svgfg1: spawnerType, levelBound: true,
-          x: tile.x, y: tile.y, r: 0.5,
-          tileCover: [ new Vector([tile.x, tile.y]) ]
-        };
-		    if (doSpawn) {
-	        spawnedEntity[spawnerType] = true;
-	        this.addEntity(gamestate, spawnedEntity);
-	      }
-      }
-    });
-    var spawnEntity = level.entrances[entranceName];
-    var spawnPoint = new Vector([spawnEntity.x, spawnEntity.y]);
+	  
+    level.tiles
+     .forEach((tile, i) => this.addEntity(gamestate, tile));
+    
+    level.tiles
+     .filter(tile => "spawner" in tile)
+     .forEach(tile => this.activateSpawner(gamestate, tile));
+    
+    let entranceTile = level.entrances[entranceName];
+    let playerXY = new Vector([entranceTile.x, entranceTile.y]);
     player.recentEntrance = entranceName;
-    this.moveEntity(gamestate, player, spawnPoint, [ spawnPoint ]);
+    this.moveEntity(gamestate, player, playerXY, [ playerXY ]);
     this.draw(gamestate, new Set(["bg1", "bg2", "bg3"]));
   }
 
@@ -361,18 +414,20 @@ class TileMaze {
     return tiles; 
   }
   
-  tryMove(heading, updatePeriod) {
-    var gamestate = this.gamestate;
+  tryMove(entity, heading, updatePeriod) {
+    let gamestate = this.gamestate;
     if (!gamestate) { return; }
-    var player = this.one(gamestate.byType, "player");
     
-    var newXY = heading
+    let player = this.one(gamestate.byType, "player");
+    const isPlayer = (entity === player);
+    
+    let newXY = heading
      .unitize()
-     .scale(player.runspeed * updatePeriod)
-     .add(new Vector([player.x, player.y]));
+     .scale(entity.runspeed * updatePeriod)
+     .add(new Vector([entity.x, entity.y]));
     
-    var newTileCover = this.intersectCircleVsGrid(newXY, player.r);
-    var entitiesAtDestination = newTileCover
+    let newTileCover = this.intersectCircleVsGrid(newXY, entity.r);
+    let entitiesAtDestination = newTileCover
     .map(a => a.components)
     .map((xy) => {
       var atX = this.all(gamestate.byX, xy[0]);
@@ -386,7 +441,7 @@ class TileMaze {
     
     var exitTiles = entitiesAtDestination.filter(e => "exit" in e);
     if (hasValue(player.recentEntrance)) {
-      var excluded = gamestate.level.entrances[player.recentEntrance];
+      let excluded = gamestate.level.entrances[player.recentEntrance];
       exitTiles = exitTiles
       .filter(e => e.x !== excluded.x && e.y != excluded.y);
     }
@@ -402,11 +457,11 @@ class TileMaze {
     var allowMove = hasFloor;
     
     if (hasWall) { moveHintText = "BONK"; allowMove = false; }
-    if (hasGoal) { moveHintText = "Found the glowing thing! Winner!"; }
+    if (hasGoal && isPlayer) { moveHintText = "Found the glowing thing! Winner!"; }
     
     // TODO: currently assumes only one key-lock pair "testkey"
     // in existence (proof-of-concept):
-    if (hasLock) {
+    if (hasLock && isPlayer) {
       if (player.keys.has("testkey")) {
         this.removeEntity(gamestate, this.one(gamestate.byType, "lock"));
       }
@@ -414,13 +469,13 @@ class TileMaze {
         moveHintText = "BONK! Need a key..."; allowMove = false;
       }
     }
-    if (hasKey) {
+    if (hasKey && isPlayer) {
       player.keys.add("testkey");
       this.removeEntity(gamestate, this.one(gamestate.byType, "key"));
       moveHintText = "Got the key.";
     }
     
-    if (hasExit) {
+    if (hasExit && isPlayer) {
       var exit = exitTiles[0].exit;
       var levelName = gamestate.level.name;
       if (exit.split(".").length == 2) { // cross-level exits use "level.exit" notation
@@ -433,11 +488,14 @@ class TileMaze {
       return;
     }
     
-    if (!hasFloor) { this.hintText("No floor there.. scary."); allowMove = false; }
+    if (!hasFloor) {
+      moveHintText = "No floor there.. scary.";
+      allowMove = false;
+    }
     
     if (allowMove) {
-      this.moveEntity(gamestate, player, newXY, newTileCover);
-      if (hasValue(player.recentEntrance)) {
+      this.moveEntity(gamestate, entity, newXY, newTileCover);
+      if (isPlayer && hasValue(player.recentEntrance)) {
         var entranceTile = gamestate.level.entrances[player.recentEntrance];
         var matchingTiles = newTileCover
         .filter((t) => {
@@ -448,7 +506,7 @@ class TileMaze {
         if (matchingTiles.length === 0) { player.recentEntrance = null; }
       }
     }
-    this.hintText(moveHintText);
+    if (isPlayer) { this.hintText(moveHintText); }
   }
   
   svgDoc () {
@@ -465,8 +523,10 @@ class TileMaze {
   
   updateCameraPosition (gamestate, svgCamera) {
     var player = this.one(gamestate.byType, "player");
-    var camX = this.cameraFocusX - player.x;
-    var camY = this.cameraFocusY - player.y;
+    // there is also the camera transform relative to screen space,
+    // but this is currently done in viewport.svg
+    var camX = -player.x;
+    var camY = -player.y;
     var newTransformStr = "translate(X, Y)".replace("X", camX).replace("Y", camY);
     svgCamera.attr("transform", newTransformStr);
   }
